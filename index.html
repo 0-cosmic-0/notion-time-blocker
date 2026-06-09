@@ -803,6 +803,28 @@
       </div>
     </div>
   </div>
+  <!-- TEMPLATE MODAL -->
+  <div class="modal-backdrop" id="templateModalBackdrop">
+    <div class="modal">
+      <div class="modal-title">Edit Template</div>
+  
+      <div class="modal-row">
+        <label for="templateNameInput">Template Name</label>
+        <input type="text" id="templateNameInput" />
+      </div>
+  
+      <div class="modal-footer">
+        <div class="modal-left-actions">
+          <button class="btn" id="duplicateTemplateBtn">Duplicate</button>
+          <button class="btn btn-danger" id="deleteTemplateConfirmBtn">Delete</button>
+        </div>
+        <div class="modal-right-actions">
+          <button class="btn" id="cancelTemplateBtn">Cancel</button>
+          <button class="btn btn-primary" id="saveTemplateBtn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
     /************************************************************
@@ -1264,6 +1286,11 @@
           renderTemplatesList();
           renderEvents();
         });
+        
+        item.addEventListener("dblclick", (e) => {
+          e.stopPropagation();
+          openTemplateModal(t.id);
+        });
 
         templateListEl.appendChild(item);
       }
@@ -1317,6 +1344,100 @@
       saveState();
       renderTemplatesList();
     });
+
+    /************************************************************
+   * TEMPLATE MODAL
+   ************************************************************/
+  
+  const templateModalBackdrop = document.getElementById("templateModalBackdrop");
+  const templateNameInput = document.getElementById("templateNameInput");
+  const duplicateTemplateBtn = document.getElementById("duplicateTemplateBtn");
+  const deleteTemplateConfirmBtn = document.getElementById("deleteTemplateConfirmBtn");
+  const cancelTemplateBtn = document.getElementById("cancelTemplateBtn");
+  const saveTemplateBtn = document.getElementById("saveTemplateBtn");
+  
+  let editingTemplateId = null;
+  
+  function openTemplateModal(templateId) {
+    const tpl = state.templates.find(t => t.id === templateId);
+    if (!tpl) return;
+  
+    editingTemplateId = templateId;
+    templateNameInput.value = tpl.name;
+  
+    templateModalBackdrop.classList.add("visible");
+  }
+  
+  function closeTemplateModal() {
+    templateModalBackdrop.classList.remove("visible");
+    editingTemplateId = null;
+  }
+  
+  cancelTemplateBtn.addEventListener("click", closeTemplateModal);
+  
+  templateModalBackdrop.addEventListener("click", (e) => {
+    if (e.target === templateModalBackdrop) closeTemplateModal();
+  });
+  
+  /************** SAVE TEMPLATE NAME **************/
+  saveTemplateBtn.addEventListener("click", () => {
+    const tpl = state.templates.find(t => t.id === editingTemplateId);
+    if (!tpl) return;
+  
+    tpl.name = templateNameInput.value.trim() || "Untitled Template";
+  
+    saveState();
+    renderTemplatesList();
+    syncTemplateTitle();
+    closeTemplateModal();
+  });
+  
+  /************** DELETE TEMPLATE **************/
+  deleteTemplateConfirmBtn.addEventListener("click", () => {
+    if (!editingTemplateId) return;
+  
+    if (state.templates.length <= 1) {
+      alert("You must have at least one template.");
+      return;
+    }
+  
+    state.templates = state.templates.filter(t => t.id !== editingTemplateId);
+  
+    if (state.currentTemplateId === editingTemplateId) {
+      state.currentTemplateId = state.templates[0].id;
+    }
+  
+    saveState();
+    renderTemplatesList();
+    syncTemplateTitle();
+    renderEvents();
+    closeTemplateModal();
+  });
+
+/************** DUPLICATE TEMPLATE **************/
+duplicateTemplateBtn.addEventListener("click", () => {
+  const tpl = state.templates.find(t => t.id === editingTemplateId);
+  if (!tpl) return;
+
+  const newId = generateId("tpl");
+  const cloned = {
+    id: newId,
+    name: tpl.name + " (Copy)",
+    events: tpl.events.map(ev => ({
+      ...ev,
+      id: generateId("ev")
+    }))
+  };
+
+  state.templates.push(cloned);
+  state.currentTemplateId = newId;
+
+  saveState();
+  renderTemplatesList();
+  syncTemplateTitle();
+  renderEvents();
+  closeTemplateModal();
+});
 
     /************************************************************
      * EVENT MODAL
