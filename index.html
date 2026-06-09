@@ -16,18 +16,17 @@
        ========================= */
 
     :root {
-      /* You can safely change these default theme colors.
-         They are overridden by JS when user picks a theme. */
+      /* These are defaults; JS will override them when theme changes. */
       --bg-main: #F0EFED;
-      --bg-panel: #ffffff;
-      --bg-grid: #ffffff;
-      --border-subtle: #e0e0e0;
+      --bg-panel: #FFFFFF;
+      --bg-grid: #FFFFFF;
+      --border-subtle: #E0E0E0;
       --text-main: #191919;
       --text-muted: #555555;
       --accent: #2E7CD1;
       --accent-dark: #233850;
       --event-bg: #2E7CD1;
-      --event-text: #ffffff;
+      --event-text: #FFFFFF;
       --event-overlay-border: #2E7CD1;
     }
 
@@ -65,6 +64,12 @@
 
     .top-bar-left {
       display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .top-bar-main {
+      display: flex;
       align-items: baseline;
       gap: 8px;
     }
@@ -76,6 +81,11 @@
 
     .app-subtitle {
       font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .current-indicator {
+      font-size: 11px;
       color: var(--text-muted);
     }
 
@@ -132,6 +142,7 @@
       overflow: hidden;
       border-right: 1px solid var(--border-subtle);
       background: var(--bg-grid);
+      position: relative;
     }
 
     .time-column {
@@ -145,12 +156,21 @@
     }
 
     .time-label {
-      height: 48px; /* 12 * 4px = 48px per hour (12 slots of 5 min) */
+      height: 1px; /* will be stretched dynamically */
       display: flex;
       align-items: flex-start;
       justify-content: center;
       padding-top: 4px;
-      border-bottom: 1px solid #f3f3f3;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .time-label.early,
+    .time-label.late {
+      display: none;
+    }
+
+    .time-label.visible {
+      display: flex;
     }
 
     .grid-scroll {
@@ -161,33 +181,26 @@
 
     .grid-inner {
       position: relative;
-      padding-right: 16px;
       min-width: 260px;
     }
 
     .grid-hour {
-      position: relative;
-      height: 48px; /* 12 * 4px */
-      border-bottom: 1px solid #f3f3f3;
-    }
-
-    .grid-hour::before {
-      content: "";
       position: absolute;
       left: 0;
       right: 0;
-      top: 0;
-      border-top: 1px solid #eaeaea;
+      border-bottom: 1px solid var(--border-subtle);
     }
 
-    .grid-slot {
-      position: absolute;
-      left: 0;
-      right: 0;
-      height: 4px; /* 5 minutes */
-      border-top: 1px dashed #f7f7f7;
-      pointer-events: none;
+    .grid-hour.early,
+    .grid-hour.late {
+      display: none;
     }
+
+    .grid-hour.visible {
+      display: block;
+    }
+
+    /* No inner 5-min lines anymore to keep events clean */
 
     .event-layer {
       position: absolute;
@@ -195,7 +208,7 @@
       right: 8px;
       top: 0;
       bottom: 0;
-      pointer-events: none;
+      pointer-events: auto;
     }
 
     .event-block {
@@ -203,7 +216,7 @@
       left: 0;
       right: 0;
       border-radius: 6px;
-      padding: 4px 6px 4px 8px;
+      padding: 4px 8px;
       font-size: 11px;
       line-height: 1.3;
       background: var(--event-bg);
@@ -215,6 +228,9 @@
       align-items: center;
       justify-content: space-between;
       gap: 4px;
+      /* Space between events: we shrink height slightly and add margin */
+      margin-top: 2px;
+      margin-bottom: 2px;
     }
 
     .event-block.locked {
@@ -253,7 +269,7 @@
       position: absolute;
       top: 40px;
       right: 8px;
-      width: 280px;
+      width: 300px;
       max-width: 80vw;
       background: var(--bg-panel);
       border-radius: 12px;
@@ -327,6 +343,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      margin-bottom: 4px;
     }
 
     .panel-row label {
@@ -335,7 +352,8 @@
     }
 
     .panel-row select,
-    .panel-row input[type="color"] {
+    .panel-row input[type="color"],
+    .panel-row input[type="range"] {
       font-size: 11px;
       padding: 2px 4px;
       border-radius: 6px;
@@ -481,7 +499,7 @@
        ========================= */
 
     @media (max-width: 900px) {
-      .top-bar-left .app-subtitle {
+      .app-subtitle {
         display: none;
       }
     }
@@ -492,12 +510,20 @@
   <!-- TOP BAR -->
   <div class="top-bar">
     <div class="top-bar-left">
-      <div class="app-title">Daily Time Blocker</div>
-      <div class="app-subtitle">5‑minute schedule · drag & drop · templates</div>
+      <div class="top-bar-main">
+        <div class="app-title">Daily Time Blocker</div>
+        <div class="app-subtitle">5‑minute schedule · drag & drop · templates</div>
+      </div>
+      <div class="current-indicator" id="currentIndicator">
+        <!-- Filled by JS: current time + event -->
+      </div>
     </div>
     <div class="top-bar-right">
       <div class="small-label">Share code:</div>
       <div class="share-code" id="shareCodeDisplay"></div>
+      <button class="icon-button" id="toggleHoursButton" title="Show/hide early and late hours">
+        ⏱ <span>Early/Late</span>
+      </button>
       <button class="icon-button" id="addEventButton" title="Add event to current template">
         ➕ <span>Add event</span>
       </button>
@@ -514,7 +540,7 @@
       <div class="time-column" id="timeColumn"></div>
       <div class="grid-scroll" id="gridScroll">
         <div class="grid-inner" id="gridInner">
-          <!-- Hours + slots + events are injected by JS -->
+          <!-- Hours + events injected by JS -->
           <div class="event-layer" id="eventLayer"></div>
         </div>
       </div>
@@ -540,17 +566,23 @@
       <div class="panel-section-title">Theme</div>
       <div class="panel-row">
         <label for="themePresetSelect">Preset</label>
-        <select id="themePresetSelect">
-          <!-- Options filled by JS -->
-        </select>
+        <select id="themePresetSelect"></select>
+      </div>
+      <div class="panel-row">
+        <label>Background</label>
+        <input type="color" id="bgColorInput" />
       </div>
       <div class="panel-row">
         <label>Accent</label>
         <input type="color" id="accentColorInput" />
       </div>
       <div class="panel-row">
-        <label>Background</label>
-        <input type="color" id="bgColorInput" />
+        <label>Event text</label>
+        <input type="color" id="eventTextColorInput" />
+      </div>
+      <div class="panel-row">
+        <label>General text</label>
+        <input type="color" id="textMainColorInput" />
       </div>
       <div class="panel-note">
         Theme is global and applies to all templates.
@@ -568,9 +600,11 @@
       </div>
       <div class="panel-row">
         <label for="alarmSoundSelect">Sound</label>
-        <select id="alarmSoundSelect">
-          <!-- Filled by JS -->
-        </select>
+        <select id="alarmSoundSelect"></select>
+      </div>
+      <div class="panel-row">
+        <label for="alarmVolumeInput">Volume</label>
+        <input type="range" id="alarmVolumeInput" min="0" max="1" step="0.05" />
       </div>
       <div class="panel-note">
         Plays at start and end of each event. If another event follows, message will say:
@@ -617,25 +651,14 @@
   </div>
 
   <!-- AUDIO (ALARM) -->
-  <!-- You can safely replace these file URLs with your own sounds. -->
-  <audio id="alarmAudio">
-    <source src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" type="audio/ogg">
-    <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
-  </audio>
+  <audio id="alarmAudio"></audio>
 </div>
 
 <script>
   /* ============================================================
      CONFIGURATION SECTION (SAFE TO EDIT)
-     ------------------------------------------------------------
-     You can safely modify:
-     - THEME_PRESETS
-     - SOUND_OPTIONS
-     - DEFAULT_TEMPLATE (events)
-     - DEFAULT_THEME
      ============================================================ */
 
-  // Theme presets (global)
   const THEME_PRESETS = [
     {
       id: 'notion-summer',
@@ -680,6 +703,34 @@
       overlayBorder: '#F472B6'
     },
     {
+      id: 'sunrise',
+      name: 'Sunrise Warm',
+      bgMain: '#FFF7ED',
+      bgPanel: '#FFFFFF',
+      bgGrid: '#FFFFFF',
+      textMain: '#3F2A1D',
+      textMuted: '#8C6B4F',
+      accent: '#FB923C',
+      accentDark: '#EA580C',
+      eventBg: '#F97316',
+      eventText: '#FFFFFF',
+      overlayBorder: '#FB923C'
+    },
+    {
+      id: 'forest',
+      name: 'Forest Calm',
+      bgMain: '#ECFDF5',
+      bgPanel: '#FFFFFF',
+      bgGrid: '#FFFFFF',
+      textMain: '#064E3B',
+      textMuted: '#6B7280',
+      accent: '#10B981',
+      accentDark: '#047857',
+      eventBg: '#059669',
+      eventText: '#ECFDF5',
+      overlayBorder: '#10B981'
+    },
+    {
       id: 'dark-blue',
       name: 'Dark Blue',
       bgMain: '#0F172A',
@@ -695,52 +746,51 @@
     }
   ];
 
-  // Default theme preset ID
   const DEFAULT_THEME = 'notion-summer';
 
-  // Alarm sound options (you can replace URLs)
   const SOUND_OPTIONS = [
     { id: 'default', name: 'Default alarm', url: 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg' },
-    { id: 'beep', name: 'Short beep', url: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' }
+    { id: 'beep', name: 'Short beep', url: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' },
+    { id: 'digital', name: 'Digital tone', url: 'https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg' },
+    { id: 'bell', name: 'Soft bell', url: 'https://actions.google.com/sounds/v1/alarms/medium_bell_ringing_near.ogg' }
   ];
 
-  // Default template with your summer routine (times in 5-min increments)
-  // You can safely edit this list to change the default template.
   const DEFAULT_TEMPLATE = {
     id: 'default-summer',
     name: 'Default Summer Routine',
     events: [
       { id: 'e1', name: 'Arise (+Morning Routine)', start: '06:00', end: '06:30', description: 'Water, Meditate, Plan, and Stretch', locked: false },
-      { id: 'e2', name: 'Morning Run', start: '06:30', end: '07:00', description: 'Quick loop to the park and back, jogging there and back if possible', locked: false },
-      { id: 'e3', name: 'Cooldown + Journal', start: '07:00', end: '07:15', description: 'Post run stretch and journaling for the day, plan final details', locked: false },
-      { id: 'e4', name: 'Coding', start: '07:15', end: '09:00', description: 'Unity + Khan Academy programming study', locked: false },
-      { id: 'e5', name: 'Break + Breakfast', start: '09:00', end: '09:20', description: 'Craft break: diamond painting, bracelet making, etc.', locked: false },
-      { id: 'e6', name: 'Theory', start: '09:20', end: '09:40', description: '1/2+ page of workbook + ear training', locked: false },
-      { id: 'e7', name: 'Reading', start: '09:40', end: '10:00', description: 'Book of choice or Khan Academy 9th reading course', locked: false },
-      { id: 'e8', name: 'Algebra 2', start: '10:00', end: '11:45', description: 'Khan Academy Algebra 2 + notes', locked: false },
+      { id: 'e2', name: 'Morning Run', start: '06:30', end: '07:00', description: 'Quick loop to the park and back', locked: false },
+      { id: 'e3', name: 'Cooldown + Journal', start: '07:00', end: '07:15', description: 'Stretch + journaling + plan details', locked: false },
+      { id: 'e4', name: 'Coding', start: '07:15', end: '09:00', description: 'Unity + Khan Academy programming', locked: false },
+      { id: 'e5', name: 'Break + Breakfast', start: '09:00', end: '09:20', description: 'Craft break + breakfast', locked: false },
+      { id: 'e6', name: 'Theory', start: '09:20', end: '09:40', description: 'Workbook + ear training', locked: false },
+      { id: 'e7', name: 'Reading', start: '09:40', end: '10:00', description: 'Book or Khan reading course', locked: false },
+      { id: 'e8', name: 'Algebra 2', start: '10:00', end: '11:45', description: 'Khan Academy + notes', locked: false },
       { id: 'e9', name: 'Lunch and Break', start: '11:45', end: '12:15', description: 'Lunch + rest', locked: false },
-      { id: 'e10', name: 'Study Hall Topic 1', start: '12:15', end: '13:00', description: 'Study topic 1 or move other classes here', locked: false },
-      { id: 'e11', name: 'Study Hall Topic 2', start: '13:00', end: '13:45', description: 'Video editing, college admissions, competitions, SAT prep, etc.', locked: false },
+      { id: 'e10', name: 'Study Hall Topic 1', start: '12:15', end: '13:00', description: 'Study topic 1 or move classes', locked: false },
+      { id: 'e11', name: 'Study Hall Topic 2', start: '13:00', end: '13:45', description: 'Video editing, college, competitions, SAT, etc.', locked: false },
       { id: 'e12', name: 'Piano', start: '13:45', end: '14:45', description: '5+ pages + other pieces', locked: false },
-      { id: 'e13', name: 'Vocal Practice', start: '14:45', end: '15:30', description: 'Warm up + rehearse vocal pieces', locked: false },
+      { id: 'e13', name: 'Vocal Practice', start: '14:45', end: '15:30', description: 'Warm up + rehearse pieces', locked: false },
       { id: 'e14', name: 'Workout', start: '15:30', end: '16:00', description: 'Run or workout + stretching', locked: false },
       { id: 'e15', name: 'Shower + Self Care', start: '16:00', end: '16:45', description: 'Shower + self care', locked: false },
-      { id: 'e16', name: 'Break', start: '16:45', end: '22:00', description: 'Shows, crafts, outside, games, courses, anything but scrolling', locked: false },
+      { id: 'e16', name: 'Break', start: '16:45', end: '22:00', description: 'Shows, crafts, outside, games, courses, no scrolling', locked: false },
       { id: 'e17', name: 'Wind down', start: '22:00', end: '22:30', description: 'Devices away, clean room, stretch, get ready to sleep', locked: false },
-      { id: 'e18', name: 'Sleep', start: '22:30', end: '23:00', description: 'You can sleep earlier, but not later than 23:00', locked: false }
+      { id: 'e18', name: 'Sleep', start: '22:30', end: '23:00', description: 'Sleep (or earlier)', locked: false }
     ]
   };
 
   /* ============================================================
-     INTERNAL STATE (better not to modify directly)
+     INTERNAL STATE
      ============================================================ */
 
   const MINUTES_PER_DAY = 24 * 60;
   const SLOT_MINUTES = 5;
-  const SLOT_HEIGHT = 4; // px per 5 minutes
-  const HOUR_HEIGHT = SLOT_HEIGHT * (60 / SLOT_MINUTES); // 48px
 
-  let templates = [];          // {id, name, events[]}
+  let HOUR_HEIGHT = 48; // will be adjusted to fill vertical space
+  const SLOT_HEIGHT = 4; // base; we’ll scale HOUR_HEIGHT but keep ratio
+
+  let templates = [];
   let currentTemplateId = null;
   let draggingEventId = null;
   let dragOffsetMinutes = 0;
@@ -750,13 +800,17 @@
 
   let alarmsEnabled = false;
   let alarmSoundId = 'default';
+  let alarmVolume = 0.8;
   let lastAlarmCheckMinute = null;
 
   let currentThemeId = DEFAULT_THEME;
   let customAccent = null;
   let customBg = null;
+  let customEventText = null;
+  let customTextMain = null;
 
-  // DOM references
+  let showEarlyLate = false;
+
   const timeColumnEl = document.getElementById('timeColumn');
   const gridScrollEl = document.getElementById('gridScroll');
   const gridInnerEl = document.getElementById('gridInner');
@@ -768,11 +822,16 @@
   const themePresetSelect = document.getElementById('themePresetSelect');
   const accentColorInput = document.getElementById('accentColorInput');
   const bgColorInput = document.getElementById('bgColorInput');
+  const eventTextColorInput = document.getElementById('eventTextColorInput');
+  const textMainColorInput = document.getElementById('textMainColorInput');
   const alarmToggle = document.getElementById('alarmToggle');
   const alarmSoundSelect = document.getElementById('alarmSoundSelect');
+  const alarmVolumeInput = document.getElementById('alarmVolumeInput');
   const alarmAudio = document.getElementById('alarmAudio');
   const shareCodeDisplay = document.getElementById('shareCodeDisplay');
   const addEventButton = document.getElementById('addEventButton');
+  const toggleHoursButton = document.getElementById('toggleHoursButton');
+  const currentIndicator = document.getElementById('currentIndicator');
 
   const modalBackdrop = document.getElementById('modalBackdrop');
   const modalCloseButton = document.getElementById('modalCloseButton');
@@ -784,10 +843,10 @@
   const saveEventButton = document.getElementById('saveEventButton');
   const deleteEventButton = document.getElementById('deleteEventButton');
 
-  let modalEventId = null; // which event is being edited
+  let modalEventId = null;
 
   /* ============================================================
-     UTILITY FUNCTIONS
+     UTILITIES
      ============================================================ */
 
   function timeToMinutes(t) {
@@ -818,11 +877,15 @@
       currentTemplateId,
       alarmsEnabled,
       alarmSoundId,
+      alarmVolume,
       theme: {
         currentThemeId,
         customAccent,
-        customBg
-      }
+        customBg,
+        customEventText,
+        customTextMain
+      },
+      showEarlyLate
     };
     localStorage.setItem(key, JSON.stringify(data));
   }
@@ -832,14 +895,17 @@
     const key = 'timeblocker_' + shareCode;
     const raw = localStorage.getItem(key);
     if (!raw) {
-      // First time: create default template
       templates = [JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))];
       currentTemplateId = DEFAULT_TEMPLATE.id;
       alarmsEnabled = false;
       alarmSoundId = 'default';
+      alarmVolume = 0.8;
       currentThemeId = DEFAULT_THEME;
       customAccent = null;
       customBg = null;
+      customEventText = null;
+      customTextMain = null;
+      showEarlyLate = false;
       return;
     }
     try {
@@ -848,36 +914,55 @@
       currentTemplateId = data.currentTemplateId || templates[0].id;
       alarmsEnabled = !!data.alarmsEnabled;
       alarmSoundId = data.alarmSoundId || 'default';
+      alarmVolume = typeof data.alarmVolume === 'number' ? data.alarmVolume : 0.8;
       if (data.theme) {
         currentThemeId = data.theme.currentThemeId || DEFAULT_THEME;
         customAccent = data.theme.customAccent || null;
         customBg = data.theme.customBg || null;
+        customEventText = data.theme.customEventText || null;
+        customTextMain = data.theme.customTextMain || null;
       }
+      showEarlyLate = !!data.showEarlyLate;
     } catch (e) {
       console.error('Failed to parse storage, resetting.', e);
       templates = [JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))];
       currentTemplateId = DEFAULT_TEMPLATE.id;
       alarmsEnabled = false;
       alarmSoundId = 'default';
+      alarmVolume = 0.8;
       currentThemeId = DEFAULT_THEME;
       customAccent = null;
       customBg = null;
+      customEventText = null;
+      customTextMain = null;
+      showEarlyLate = false;
     }
   }
 
   /* ============================================================
-     RENDERING: GRID & TIME COLUMN
+     GRID & TIME COLUMN
      ============================================================ */
+
+  function computeHourHeight() {
+    const availableHeight = gridScrollEl.clientHeight || 600;
+    HOUR_HEIGHT = availableHeight / 24;
+  }
 
   function renderTimeColumn() {
     timeColumnEl.innerHTML = '';
     for (let h = 0; h < 24; h++) {
       const label = document.createElement('div');
       label.className = 'time-label';
+      label.dataset.hour = h;
       label.textContent = `${String(h).padStart(2, '0')}:00`;
+      if (h >= 6 && h < 23) {
+        label.classList.add('visible');
+      } else {
+        label.classList.add(h < 6 ? 'early' : 'late');
+        if (showEarlyLate) label.classList.add('visible');
+      }
       timeColumnEl.appendChild(label);
     }
-    // Sync height with grid
     timeColumnEl.scrollTop = gridScrollEl.scrollTop;
     timeColumnEl.addEventListener('scroll', () => {
       gridScrollEl.scrollTop = timeColumnEl.scrollTop;
@@ -888,25 +973,24 @@
   }
 
   function renderGridStructure() {
+    computeHourHeight();
     gridInnerEl.style.height = `${HOUR_HEIGHT * 24}px`;
-    // Remove existing hour lines except event layer
+
     const children = Array.from(gridInnerEl.children).filter(c => c !== eventLayerEl);
     children.forEach(c => gridInnerEl.removeChild(c));
 
     for (let h = 0; h < 24; h++) {
       const hourEl = document.createElement('div');
       hourEl.className = 'grid-hour';
+      hourEl.dataset.hour = h;
       hourEl.style.top = `${h * HOUR_HEIGHT}px`;
-      hourEl.style.left = '0';
-      hourEl.style.right = '0';
-      hourEl.style.position = 'absolute';
+      hourEl.style.height = `${HOUR_HEIGHT}px`;
 
-      // 5-min slots
-      for (let i = 1; i < 12; i++) {
-        const slotEl = document.createElement('div');
-        slotEl.className = 'grid-slot';
-        slotEl.style.top = `${i * SLOT_HEIGHT}px`;
-        hourEl.appendChild(slotEl);
+      if (h >= 6 && h < 23) {
+        hourEl.classList.add('visible');
+      } else {
+        hourEl.classList.add(h < 6 ? 'early' : 'late');
+        if (showEarlyLate) hourEl.classList.add('visible');
       }
 
       gridInnerEl.appendChild(hourEl);
@@ -914,7 +998,7 @@
   }
 
   /* ============================================================
-     RENDERING: EVENTS
+     EVENTS
      ============================================================ */
 
   function eventsOverlap(a, b) {
@@ -941,13 +1025,12 @@
       const endMin = timeToMinutes(ev.end);
       const durationMin = Math.max(5, endMin - startMin);
 
-      const topPx = startMin / SLOT_MINUTES * SLOT_HEIGHT;
-      const heightPx = durationMin / SLOT_MINUTES * SLOT_HEIGHT;
+      const topPx = (startMin / 60) * HOUR_HEIGHT;
+      const heightPx = (durationMin / 60) * HOUR_HEIGHT - 4; // slight shrink for spacing
 
       block.style.top = `${topPx}px`;
       block.style.height = `${heightPx}px`;
 
-      // Check overlap to add dashed outline
       const overlapping = events.some(other => other.id !== ev.id && eventsOverlap(ev, other));
       if (overlapping) {
         block.classList.add('event-overlay');
@@ -989,15 +1072,12 @@
       block.appendChild(leftPart);
       block.appendChild(rightPart);
 
-      // Hover tooltip for description
       if (ev.description) {
         block.title = ev.description;
       }
 
-      // Dragging
       block.addEventListener('mousedown', (e) => {
         if (ev.locked) {
-          // Show subtle feedback but do not drag
           block.classList.add('event-overlay');
           setTimeout(() => block.classList.remove('event-overlay'), 200);
           return;
@@ -1007,12 +1087,12 @@
         const clickY = e.clientY;
         const rect = block.getBoundingClientRect();
         const offsetPx = clickY - rect.top;
-        dragOffsetMinutes = Math.round(offsetPx / SLOT_HEIGHT) * SLOT_MINUTES;
+        const minutesPerPx = 60 / HOUR_HEIGHT;
+        dragOffsetMinutes = Math.round(offsetPx * minutesPerPx / SLOT_MINUTES) * SLOT_MINUTES;
         block.style.cursor = 'grabbing';
         e.preventDefault();
       });
 
-      // Click to open modal (only if not dragging)
       block.addEventListener('click', (e) => {
         if (isDragging) return;
         openEventModal(ev.id);
@@ -1023,10 +1103,6 @@
     }
   }
 
-  /* ============================================================
-     DRAG HANDLING
-     ============================================================ */
-
   document.addEventListener('mousemove', (e) => {
     if (!isDragging || !draggingEventId) return;
     const template = getCurrentTemplate();
@@ -1036,7 +1112,8 @@
 
     const layerRect = eventLayerEl.getBoundingClientRect();
     const y = e.clientY - layerRect.top;
-    let minutesFromTop = Math.round(y / SLOT_HEIGHT) * SLOT_MINUTES - dragOffsetMinutes;
+    const minutesPerPx = 60 / HOUR_HEIGHT;
+    let minutesFromTop = Math.round(y * minutesPerPx / SLOT_MINUTES) * SLOT_MINUTES - dragOffsetMinutes;
     minutesFromTop = Math.max(0, Math.min(MINUTES_PER_DAY - 5, minutesFromTop));
 
     const duration = timeToMinutes(ev.end) - timeToMinutes(ev.start);
@@ -1060,7 +1137,7 @@
   });
 
   /* ============================================================
-     TEMPLATES PANEL
+     TEMPLATES
      ============================================================ */
 
   function renderTemplateList() {
@@ -1078,7 +1155,6 @@
       editSpan.className = 'template-edit';
       editSpan.textContent = '✎';
 
-      // Click to switch template
       item.addEventListener('click', (e) => {
         if (e.target === editSpan) return;
         currentTemplateId = t.id;
@@ -1087,7 +1163,6 @@
         renderEvents();
       });
 
-      // Edit title
       editSpan.addEventListener('click', (e) => {
         e.stopPropagation();
         const newName = prompt('Template name:', t.name || '');
@@ -1119,29 +1194,34 @@
   }
 
   /* ============================================================
-     THEME HANDLING
+     THEME
      ============================================================ */
 
-  function applyTheme(themeId, accentOverride, bgOverride) {
+  function applyTheme(themeId, accentOverride, bgOverride, eventTextOverride, textMainOverride) {
     const preset = THEME_PRESETS.find(t => t.id === themeId) || THEME_PRESETS[0];
     const root = document.documentElement;
 
-    root.style.setProperty('--bg-main', bgOverride || preset.bgMain);
+    const bgMain = bgOverride || preset.bgMain;
+    const accent = accentOverride || preset.accent;
+    const eventText = eventTextOverride || preset.eventText;
+    const textMain = textMainOverride || preset.textMain;
+
+    root.style.setProperty('--bg-main', bgMain);
     root.style.setProperty('--bg-panel', preset.bgPanel);
     root.style.setProperty('--bg-grid', preset.bgGrid);
-    root.style.setProperty('--text-main', preset.textMain);
+    root.style.setProperty('--border-subtle', preset.borderSubtle || '#E0E0E0');
+    root.style.setProperty('--text-main', textMain);
     root.style.setProperty('--text-muted', preset.textMuted);
-
-    const accent = accentOverride || preset.accent;
     root.style.setProperty('--accent', accent);
     root.style.setProperty('--accent-dark', preset.accentDark);
     root.style.setProperty('--event-bg', preset.eventBg);
-    root.style.setProperty('--event-text', preset.eventText);
+    root.style.setProperty('--event-text', eventText);
     root.style.setProperty('--event-overlay-border', preset.overlayBorder);
 
-    // Update color inputs
+    bgColorInput.value = bgMain;
     accentColorInput.value = accent;
-    bgColorInput.value = (bgOverride || preset.bgMain);
+    eventTextColorInput.value = eventText;
+    textMainColorInput.value = textMain;
   }
 
   function renderThemeControls() {
@@ -1169,6 +1249,8 @@
       if (opt.id === alarmSoundId) o.selected = true;
       alarmSoundSelect.appendChild(o);
     });
+    alarmVolumeInput.value = alarmVolume;
+    alarmAudio.volume = alarmVolume;
   }
 
   function getAlarmSoundUrl() {
@@ -1180,9 +1262,9 @@
     if (!alarmsEnabled) return;
     alarmAudio.src = getAlarmSoundUrl();
     alarmAudio.currentTime = 0;
+    alarmAudio.volume = alarmVolume;
     alarmAudio.play().catch(() => {});
     if (message) {
-      // Simple alert; you could replace with a nicer UI if you want.
       alert(message);
     }
   }
@@ -1192,14 +1274,15 @@
     const now = new Date();
     const minutesNow = now.getHours() * 60 + now.getMinutes();
 
-    // Avoid firing multiple times within the same minute
     if (minutesNow === lastAlarmCheckMinute) return;
     lastAlarmCheckMinute = minutesNow;
 
     const template = getCurrentTemplate();
     if (!template) return;
 
-    template.events.forEach((ev, idx) => {
+    const sorted = template.events.slice().sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+    sorted.forEach((ev, idx) => {
       const startMin = timeToMinutes(ev.start);
       const endMin = timeToMinutes(ev.end);
 
@@ -1207,10 +1290,7 @@
         playAlarm(`Start: ${ev.name}`);
       }
       if (minutesNow === endMin) {
-        const next = template.events
-          .slice()
-          .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start))
-          .find(e => timeToMinutes(e.start) === endMin);
+        const next = sorted.find(e => timeToMinutes(e.start) === endMin);
         if (next) {
           playAlarm(`Event "${ev.name}" finished, start "${next.name}".`);
         } else {
@@ -1218,6 +1298,34 @@
         }
       }
     });
+  }
+
+  /* ============================================================
+     CURRENT TIME / EVENT INDICATOR
+     ============================================================ */
+
+  function updateCurrentIndicator() {
+    const now = new Date();
+    const minutesNow = now.getHours() * 60 + now.getMinutes();
+    const timeStr = minutesToTime(minutesNow);
+
+    const template = getCurrentTemplate();
+    if (!template) {
+      currentIndicator.textContent = `Now: ${timeStr}`;
+      return;
+    }
+
+    const ev = template.events.find(e => {
+      const s = timeToMinutes(e.start);
+      const en = timeToMinutes(e.end);
+      return minutesNow >= s && minutesNow < en;
+    });
+
+    if (ev) {
+      currentIndicator.textContent = `Now: ${timeStr} · ${ev.name}`;
+    } else {
+      currentIndicator.textContent = `Now: ${timeStr} · (no event)`;
+    }
   }
 
   /* ============================================================
@@ -1253,7 +1361,6 @@
     let start = eventStartInput.value || '00:00';
     let end = eventEndInput.value || '00:05';
 
-    // Snap to 5-minute increments
     const startMin = Math.round(timeToMinutes(start) / SLOT_MINUTES) * SLOT_MINUTES;
     let endMin = Math.round(timeToMinutes(end) / SLOT_MINUTES) * SLOT_MINUTES;
     if (endMin <= startMin) endMin = startMin + SLOT_MINUTES;
@@ -1282,7 +1389,7 @@
   }
 
   /* ============================================================
-     ADD EVENT FLOW
+     ADD EVENT
      ============================================================ */
 
   function addNewEvent() {
@@ -1292,7 +1399,7 @@
     const minutesNow = now.getHours() * 60 + now.getMinutes();
     const snapped = Math.round(minutesNow / SLOT_MINUTES) * SLOT_MINUTES;
     const start = minutesToTime(snapped);
-    const end = minutesToTime(snapped + 30); // default 30 min
+    const end = minutesToTime(snapped + 30);
 
     const ev = {
       id: generateId(),
@@ -1309,7 +1416,35 @@
   }
 
   /* ============================================================
-     INITIALIZATION
+     EARLY/LATE HOURS TOGGLE
+     ============================================================ */
+
+  function applyEarlyLateVisibility() {
+    const hourEls = gridInnerEl.querySelectorAll('.grid-hour');
+    hourEls.forEach(el => {
+      const h = Number(el.dataset.hour);
+      el.classList.remove('visible');
+      if (h >= 6 && h < 23) {
+        el.classList.add('visible');
+      } else {
+        if (showEarlyLate) el.classList.add('visible');
+      }
+    });
+
+    const labelEls = timeColumnEl.querySelectorAll('.time-label');
+    labelEls.forEach(el => {
+      const h = Number(el.dataset.hour);
+      el.classList.remove('visible');
+      if (h >= 6 && h < 23) {
+        el.classList.add('visible');
+      } else {
+        if (showEarlyLate) el.classList.add('visible');
+      }
+    });
+  }
+
+  /* ============================================================
+     INIT
      ============================================================ */
 
   function initShareCode() {
@@ -1322,6 +1457,7 @@
     initShareCode();
     loadFromStorage();
 
+    computeHourHeight();
     renderTimeColumn();
     renderGridStructure();
     renderEvents();
@@ -1330,44 +1466,56 @@
     renderThemeControls();
     renderAlarmControls();
 
-    applyTheme(currentThemeId, customAccent, customBg);
+    applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
+    applyEarlyLateVisibility();
 
-    // Scroll to around 06:00 by default
     const targetMin = 6 * 60;
-    const targetPx = (targetMin / SLOT_MINUTES) * SLOT_HEIGHT;
+    const targetPx = (targetMin / 60) * HOUR_HEIGHT;
     gridScrollEl.scrollTop = Math.max(0, targetPx - 100);
     timeColumnEl.scrollTop = gridScrollEl.scrollTop;
 
-    // Panel toggle
     panelToggleButton.addEventListener('click', () => {
       sidePanelEl.classList.toggle('open');
     });
 
-    // Add template
     addTemplateButton.addEventListener('click', () => {
       addNewTemplate();
     });
 
-    // Theme changes
     themePresetSelect.addEventListener('change', () => {
       currentThemeId = themePresetSelect.value;
-      applyTheme(currentThemeId, customAccent, customBg);
-      saveToStorage();
-    });
-
-    accentColorInput.addEventListener('input', () => {
-      customAccent = accentColorInput.value;
-      applyTheme(currentThemeId, customAccent, customBg);
+      customAccent = null;
+      customBg = null;
+      customEventText = null;
+      customTextMain = null;
+      applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
       saveToStorage();
     });
 
     bgColorInput.addEventListener('input', () => {
       customBg = bgColorInput.value;
-      applyTheme(currentThemeId, customAccent, customBg);
+      applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
       saveToStorage();
     });
 
-    // Alarms
+    accentColorInput.addEventListener('input', () => {
+      customAccent = accentColorInput.value;
+      applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
+      saveToStorage();
+    });
+
+    eventTextColorInput.addEventListener('input', () => {
+      customEventText = eventTextColorInput.value;
+      applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
+      saveToStorage();
+    });
+
+    textMainColorInput.addEventListener('input', () => {
+      customTextMain = textMainColorInput.value;
+      applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
+      saveToStorage();
+    });
+
     alarmToggle.addEventListener('change', () => {
       alarmsEnabled = alarmToggle.checked;
       saveToStorage();
@@ -1378,12 +1526,22 @@
       saveToStorage();
     });
 
-    // Add event button
+    alarmVolumeInput.addEventListener('input', () => {
+      alarmVolume = parseFloat(alarmVolumeInput.value);
+      alarmAudio.volume = alarmVolume;
+      saveToStorage();
+    });
+
     addEventButton.addEventListener('click', () => {
       addNewEvent();
     });
 
-    // Modal
+    toggleHoursButton.addEventListener('click', () => {
+      showEarlyLate = !showEarlyLate;
+      applyEarlyLateVisibility();
+      saveToStorage();
+    });
+
     modalCloseButton.addEventListener('click', closeEventModal);
     modalBackdrop.addEventListener('click', (e) => {
       if (e.target === modalBackdrop) closeEventModal();
@@ -1391,8 +1549,9 @@
     saveEventButton.addEventListener('click', saveEventFromModal);
     deleteEventButton.addEventListener('click', deleteEventFromModal);
 
-    // Alarm timer (check every 30 seconds)
-    setInterval(checkAlarms, 30000);
+    setInterval(checkAlarms, 5000);
+    updateCurrentIndicator();
+    setInterval(updateCurrentIndicator, 30000);
   }
 
   document.addEventListener('DOMContentLoaded', init);
