@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Notion Time Blocker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Inter font to match Notion -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* =========================
+       THEME & GLOBAL VARIABLES
+       ========================= */
+
+    :root {
+      /* You can safely change these default theme colors.
+         They are overridden by JS when user picks a theme. */
+      --bg-main: #F0EFED;
+      --bg-panel: #ffffff;
+      --bg-grid: #ffffff;
+      --border-subtle: #e0e0e0;
+      --text-main: #191919;
+      --text-muted: #555555;
+      --accent: #2E7CD1;
+      --accent-dark: #233850;
+      --event-bg: #2E7CD1;
+      --event-text: #ffffff;
+      --event-overlay-border: #2E7CD1;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    .app-root {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* =========================
+       TOP BAR
+       ========================= */
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-panel);
+    }
+
+    .top-bar-left {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .app-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .app-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .small-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .share-code {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: #ffffffaa;
+    }
+
+    .icon-button {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-main);
+    }
+
+    .icon-button:hover {
+      background: #00000008;
+    }
+
+    /* =========================
+       MAIN LAYOUT
+       ========================= */
+
+    .main-layout {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      background: var(--bg-main);
+    }
+
+    .schedule-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      border-right: 1px solid var(--border-subtle);
+      background: var(--bg-grid);
+    }
+
+    .time-column {
+      width: 64px;
+      border-right: 1px solid var(--border-subtle);
+      background: var(--bg-panel);
+      font-size: 11px;
+      color: var(--text-muted);
+      position: relative;
+      overflow-y: auto;
+    }
+
+    .time-label {
+      height: 48px; /* 12 * 4px = 48px per hour (12 slots of 5 min) */
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 4px;
+      border-bottom: 1px solid #f3f3f3;
+    }
+
+    .grid-scroll {
+      flex: 1;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .grid-inner {
+      position: relative;
+      padding-right: 16px;
+      min-width: 260px;
+    }
+
+    .grid-hour {
+      position: relative;
+      height: 48px; /* 12 * 4px */
+      border-bottom: 1px solid #f3f3f3;
+    }
+
+    .grid-hour::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      border-top: 1px solid #eaeaea;
+    }
+
+    .grid-slot {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 4px; /* 5 minutes */
+      border-top: 1px dashed #f7f7f7;
+      pointer-events: none;
+    }
+
+    .event-layer {
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      top: 0;
+      bottom: 0;
+      pointer-events: none;
+    }
+
+    .event-block {
+      position: absolute;
+      left: 0;
+      right: 0;
+      border-radius: 6px;
+      padding: 4px 6px 4px 8px;
+      font-size: 11px;
+      line-height: 1.3;
+      background: var(--event-bg);
+      color: var(--event-text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      cursor: grab;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .event-block.locked {
+      cursor: default;
+      opacity: 0.9;
+    }
+
+    .event-title {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-time {
+      font-size: 10px;
+      opacity: 0.9;
+      white-space: nowrap;
+    }
+
+    .event-lock-icon {
+      font-size: 10px;
+      opacity: 0.9;
+      margin-left: 4px;
+    }
+
+    .event-overlay {
+      border: 1px dashed var(--event-overlay-border);
+    }
+
+    /* =========================
+       SLIDE-OUT PANEL (TEMPLATES + THEME + ALARMS)
+       ========================= */
+
+    .side-panel {
+      position: absolute;
+      top: 40px;
+      right: 8px;
+      width: 280px;
+      max-width: 80vw;
+      background: var(--bg-panel);
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      border: 1px solid var(--border-subtle);
+      padding: 12px;
+      font-size: 12px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
+    }
+
+    .side-panel.open {
+      display: flex;
+    }
+
+    .panel-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .template-list {
+      max-height: 160px;
+      overflow-y: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      padding: 4px;
+      background: #fafafa;
+    }
+
+    .template-item {
+      padding: 4px 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .template-item:hover {
+      background: #00000006;
+    }
+
+    .template-item.active {
+      background: #2E7CD10f;
+      border: 1px solid var(--accent);
+    }
+
+    .template-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .template-edit {
+      font-size: 10px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .panel-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .panel-row label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .panel-row select,
+    .panel-row input[type="color"] {
+      font-size: 11px;
+      padding: 2px 4px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      background: #ffffff;
+    }
+
+    .panel-row input[type="checkbox"] {
+      transform: scale(0.9);
+    }
+
+    .panel-note {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .panel-divider {
+      height: 1px;
+      background: var(--border-subtle);
+      margin: 4px 0;
+    }
+
+    .primary-button {
+      border: none;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      background: var(--accent);
+      color: #ffffff;
+      cursor: pointer;
+    }
+
+    .primary-button:hover {
+      background: var(--accent-dark);
+    }
+
+    /* =========================
+       EVENT MODAL
+       ========================= */
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.25);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: 320px;
+      max-width: 90vw;
+      background: var(--bg-panel);
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      font-size: 12px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .modal-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .modal-field {
+      margin-bottom: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .modal-field label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .modal-field input[type="text"],
+    .modal-field input[type="time"],
+    .modal-field textarea {
+      font-size: 12px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      font-family: inherit;
+    }
+
+    .modal-field textarea {
+      resize: vertical;
+      min-height: 48px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .modal-footer-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .danger-button {
+      border: none;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      background: #f44336;
+      color: #ffffff;
+      cursor: pointer;
+    }
+
+    .danger-button:hover {
+      background: #d32f2f;
+    }
+
+    /* =========================
+       RESPONSIVE
+       ========================= */
+
+    @media (max-width: 900px) {
+      .top-bar-left .app-subtitle {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app-root">
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <div class="app-title">Daily Time Blocker</div>
+      <div class="app-subtitle">5‑minute schedule · drag & drop · templates</div>
+    </div>
+    <div class="top-bar-right">
+      <div class="small-label">Share code:</div>
+      <div class="share-code" id="shareCodeDisplay"></div>
+      <button class="icon-button" id="addEventButton" title="Add event to current template">
+        ➕ <span>Add event</span>
+      </button>
+      <button class="icon-button" id="panelToggleButton" title="Templates, themes, alarms">
+        ☰ <span>Menu</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN LAYOUT -->
+  <div class="main-layout">
+    <!-- SCHEDULE -->
+    <div class="schedule-container">
+      <div class="time-column" id="timeColumn"></div>
+      <div class="grid-scroll" id="gridScroll">
+        <div class="grid-inner" id="gridInner">
+          <!-- Hours + slots + events are injected by JS -->
+          <div class="event-layer" id="eventLayer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDE PANEL (TEMPLATES + THEME + ALARMS) -->
+  <div class="side-panel" id="sidePanel">
+    <!-- Templates -->
+    <div>
+      <div class="panel-section-title">Templates</div>
+      <div class="template-list" id="templateList"></div>
+      <div style="margin-top:6px; display:flex; justify-content:space-between; gap:8px;">
+        <button class="primary-button" id="addTemplateButton">+ Add template</button>
+        <span class="panel-note">Click a template to switch. Titles are editable.</span>
+      </div>
+    </div>
+
+    <div class="panel-divider"></div>
+
+    <!-- Theme -->
+    <div>
+      <div class="panel-section-title">Theme</div>
+      <div class="panel-row">
+        <label for="themePresetSelect">Preset</label>
+        <select id="themePresetSelect">
+          <!-- Options filled by JS -->
+        </select>
+      </div>
+      <div class="panel-row">
+        <label>Accent</label>
+        <input type="color" id="accentColorInput" />
+      </div>
+      <div class="panel-row">
+        <label>Background</label>
+        <input type="color" id="bgColorInput" />
+      </div>
+      <div class="panel-note">
+        Theme is global and applies to all templates.
+      </div>
+    </div>
+
+    <div class="panel-divider"></div>
+
+    <!-- Alarms -->
+    <div>
+      <div class="panel-section-title">Alarms</div>
+      <div class="panel-row">
+        <label for="alarmToggle">Enable alarms</label>
+        <input type="checkbox" id="alarmToggle" />
+      </div>
+      <div class="panel-row">
+        <label for="alarmSoundSelect">Sound</label>
+        <select id="alarmSoundSelect">
+          <!-- Filled by JS -->
+        </select>
+      </div>
+      <div class="panel-note">
+        Plays at start and end of each event. If another event follows, message will say:
+        “Event A finished, start Event B”.
+      </div>
+    </div>
+  </div>
+
+  <!-- EVENT MODAL -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">Edit event</div>
+        <button class="modal-close" id="modalCloseButton">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-field">
+          <label for="eventNameInput">Name</label>
+          <input type="text" id="eventNameInput" />
+        </div>
+        <div class="modal-field">
+          <label>Time</label>
+          <div style="display:flex; gap:6px;">
+            <input type="time" id="eventStartInput" step="300" />
+            <input type="time" id="eventEndInput" step="300" />
+          </div>
+        </div>
+        <div class="modal-field">
+          <label for="eventDescriptionInput">Description</label>
+          <textarea id="eventDescriptionInput"></textarea>
+        </div>
+        <div class="modal-field" style="flex-direction:row; align-items:center; justify-content:space-between;">
+          <label for="eventLockedInput">Locked (cannot move)</label>
+          <input type="checkbox" id="eventLockedInput" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="modal-footer-left">
+          <button class="danger-button" id="deleteEventButton">Delete</button>
+        </div>
+        <button class="primary-button" id="saveEventButton">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUDIO (ALARM) -->
+  <!-- You can safely replace these file URLs with your own sounds. -->
+  <audio id="alarmAudio">
+    <source src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" type="audio/ogg">
+    <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+  </audio>
+</div>
+
+<script>
+  /* ============================================================
+     CONFIGURATION SECTION (SAFE TO EDIT)
+     ------------------------------------------------------------
+     You can safely modify:
+     - THEME_PRESETS
+     - SOUND_OPTIONS
+     - DEFAULT_TEMPLATE (events)
+     - DEFAULT_THEME
+     ============================================================ */
+
+  // Theme presets (global)
+  const THEME_PRESETS = [
+    {
+      id: 'notion-summer',
+      name: 'Notion Summer (yours)',
+      bgMain: '#F0EFED',
+      bgPanel: '#FFFFFF',
+      bgGrid: '#FFFFFF',
+      textMain: '#191919',
+      textMuted: '#555555',
+      accent: '#2E7CD1',
+      accentDark: '#233850',
+      eventBg: '#2E7CD1',
+      eventText: '#FFFFFF',
+      overlayBorder: '#2E7CD1'
+    },
+    {
+      id: 'minimal-light',
+      name: 'Minimal Light',
+      bgMain: '#F5F5F5',
+      bgPanel: '#FFFFFF',
+      bgGrid: '#FFFFFF',
+      textMain: '#222222',
+      textMuted: '#777777',
+      accent: '#3B82F6',
+      accentDark: '#1D4ED8',
+      eventBg: '#3B82F6',
+      eventText: '#FFFFFF',
+      overlayBorder: '#3B82F6'
+    },
+    {
+      id: 'soft-pastel',
+      name: 'Soft Pastel',
+      bgMain: '#FDF7FF',
+      bgPanel: '#FFFFFF',
+      bgGrid: '#FFFFFF',
+      textMain: '#2D1B3D',
+      textMuted: '#7A6A8A',
+      accent: '#F472B6',
+      accentDark: '#DB2777',
+      eventBg: '#A855F7',
+      eventText: '#FFFFFF',
+      overlayBorder: '#F472B6'
+    },
+    {
+      id: 'dark-blue',
+      name: 'Dark Blue',
+      bgMain: '#0F172A',
+      bgPanel: '#020617',
+      bgGrid: '#020617',
+      textMain: '#E5E7EB',
+      textMuted: '#9CA3AF',
+      accent: '#3B82F6',
+      accentDark: '#1D4ED8',
+      eventBg: '#1D4ED8',
+      eventText: '#E5E7EB',
+      overlayBorder: '#3B82F6'
+    }
+  ];
+
+  // Default theme preset ID
+  const DEFAULT_THEME = 'notion-summer';
+
+  // Alarm sound options (you can replace URLs)
+  const SOUND_OPTIONS = [
+    { id: 'default', name: 'Default alarm', url: 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg' },
+    { id: 'beep', name: 'Short beep', url: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' }
+  ];
+
+  // Default template with your summer routine (times in 5-min increments)
+  // You can safely edit this list to change the default template.
+  const DEFAULT_TEMPLATE = {
+    id: 'default-summer',
+    name: 'Default Summer Routine',
+    events: [
+      { id: 'e1', name: 'Arise (+Morning Routine)', start: '06:00', end: '06:30', description: 'Water, Meditate, Plan, and Stretch', locked: false },
+      { id: 'e2', name: 'Morning Run', start: '06:30', end: '07:00', description: 'Quick loop to the park and back, jogging there and back if possible', locked: false },
+      { id: 'e3', name: 'Cooldown + Journal', start: '07:00', end: '07:15', description: 'Post run stretch and journaling for the day, plan final details', locked: false },
+      { id: 'e4', name: 'Coding', start: '07:15', end: '09:00', description: 'Unity + Khan Academy programming study', locked: false },
+      { id: 'e5', name: 'Break + Breakfast', start: '09:00', end: '09:20', description: 'Craft break: diamond painting, bracelet making, etc.', locked: false },
+      { id: 'e6', name: 'Theory', start: '09:20', end: '09:40', description: '1/2+ page of workbook + ear training', locked: false },
+      { id: 'e7', name: 'Reading', start: '09:40', end: '10:00', description: 'Book of choice or Khan Academy 9th reading course', locked: false },
+      { id: 'e8', name: 'Algebra 2', start: '10:00', end: '11:45', description: 'Khan Academy Algebra 2 + notes', locked: false },
+      { id: 'e9', name: 'Lunch and Break', start: '11:45', end: '12:15', description: 'Lunch + rest', locked: false },
+      { id: 'e10', name: 'Study Hall Topic 1', start: '12:15', end: '13:00', description: 'Study topic 1 or move other classes here', locked: false },
+      { id: 'e11', name: 'Study Hall Topic 2', start: '13:00', end: '13:45', description: 'Video editing, college admissions, competitions, SAT prep, etc.', locked: false },
+      { id: 'e12', name: 'Piano', start: '13:45', end: '14:45', description: '5+ pages + other pieces', locked: false },
+      { id: 'e13', name: 'Vocal Practice', start: '14:45', end: '15:30', description: 'Warm up + rehearse vocal pieces', locked: false },
+      { id: 'e14', name: 'Workout', start: '15:30', end: '16:00', description: 'Run or workout + stretching', locked: false },
+      { id: 'e15', name: 'Shower + Self Care', start: '16:00', end: '16:45', description: 'Shower + self care', locked: false },
+      { id: 'e16', name: 'Break', start: '16:45', end: '22:00', description: 'Shows, crafts, outside, games, courses, anything but scrolling', locked: false },
+      { id: 'e17', name: 'Wind down', start: '22:00', end: '22:30', description: 'Devices away, clean room, stretch, get ready to sleep', locked: false },
+      { id: 'e18', name: 'Sleep', start: '22:30', end: '23:00', description: 'You can sleep earlier, but not later than 23:00', locked: false }
+    ]
+  };
+
+  /* ============================================================
+     INTERNAL STATE (better not to modify directly)
+     ============================================================ */
+
+  const MINUTES_PER_DAY = 24 * 60;
+  const SLOT_MINUTES = 5;
+  const SLOT_HEIGHT = 4; // px per 5 minutes
+  const HOUR_HEIGHT = SLOT_HEIGHT * (60 / SLOT_MINUTES); // 48px
+
+  let templates = [];          // {id, name, events[]}
+  let currentTemplateId = null;
+  let draggingEventId = null;
+  let dragOffsetMinutes = 0;
+  let isDragging = false;
+
+  let shareCode = null;
+
+  let alarmsEnabled = false;
+  let alarmSoundId = 'default';
+  let lastAlarmCheckMinute = null;
+
+  let currentThemeId = DEFAULT_THEME;
+  let customAccent = null;
+  let customBg = null;
+
+  // DOM references
+  const timeColumnEl = document.getElementById('timeColumn');
+  const gridScrollEl = document.getElementById('gridScroll');
+  const gridInnerEl = document.getElementById('gridInner');
+  const eventLayerEl = document.getElementById('eventLayer');
+  const sidePanelEl = document.getElementById('sidePanel');
+  const panelToggleButton = document.getElementById('panelToggleButton');
+  const addTemplateButton = document.getElementById('addTemplateButton');
+  const templateListEl = document.getElementById('templateList');
+  const themePresetSelect = document.getElementById('themePresetSelect');
+  const accentColorInput = document.getElementById('accentColorInput');
+  const bgColorInput = document.getElementById('bgColorInput');
+  const alarmToggle = document.getElementById('alarmToggle');
+  const alarmSoundSelect = document.getElementById('alarmSoundSelect');
+  const alarmAudio = document.getElementById('alarmAudio');
+  const shareCodeDisplay = document.getElementById('shareCodeDisplay');
+  const addEventButton = document.getElementById('addEventButton');
+
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const modalCloseButton = document.getElementById('modalCloseButton');
+  const eventNameInput = document.getElementById('eventNameInput');
+  const eventStartInput = document.getElementById('eventStartInput');
+  const eventEndInput = document.getElementById('eventEndInput');
+  const eventDescriptionInput = document.getElementById('eventDescriptionInput');
+  const eventLockedInput = document.getElementById('eventLockedInput');
+  const saveEventButton = document.getElementById('saveEventButton');
+  const deleteEventButton = document.getElementById('deleteEventButton');
+
+  let modalEventId = null; // which event is being edited
+
+  /* ============================================================
+     UTILITY FUNCTIONS
+     ============================================================ */
+
+  function timeToMinutes(t) {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function minutesToTime(mins) {
+    mins = ((mins % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+
+  function generateId() {
+    return 'e_' + Math.random().toString(36).slice(2, 9);
+  }
+
+  function getCurrentTemplate() {
+    return templates.find(t => t.id === currentTemplateId) || null;
+  }
+
+  function saveToStorage() {
+    if (!shareCode) return;
+    const key = 'timeblocker_' + shareCode;
+    const data = {
+      templates,
+      currentTemplateId,
+      alarmsEnabled,
+      alarmSoundId,
+      theme: {
+        currentThemeId,
+        customAccent,
+        customBg
+      }
+    };
+    localStorage.setItem(key, JSON.stringify(data));
+  }
+
+  function loadFromStorage() {
+    if (!shareCode) return;
+    const key = 'timeblocker_' + shareCode;
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      // First time: create default template
+      templates = [JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))];
+      currentTemplateId = DEFAULT_TEMPLATE.id;
+      alarmsEnabled = false;
+      alarmSoundId = 'default';
+      currentThemeId = DEFAULT_THEME;
+      customAccent = null;
+      customBg = null;
+      return;
+    }
+    try {
+      const data = JSON.parse(raw);
+      templates = data.templates || [JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))];
+      currentTemplateId = data.currentTemplateId || templates[0].id;
+      alarmsEnabled = !!data.alarmsEnabled;
+      alarmSoundId = data.alarmSoundId || 'default';
+      if (data.theme) {
+        currentThemeId = data.theme.currentThemeId || DEFAULT_THEME;
+        customAccent = data.theme.customAccent || null;
+        customBg = data.theme.customBg || null;
+      }
+    } catch (e) {
+      console.error('Failed to parse storage, resetting.', e);
+      templates = [JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))];
+      currentTemplateId = DEFAULT_TEMPLATE.id;
+      alarmsEnabled = false;
+      alarmSoundId = 'default';
+      currentThemeId = DEFAULT_THEME;
+      customAccent = null;
+      customBg = null;
+    }
+  }
+
+  /* ============================================================
+     RENDERING: GRID & TIME COLUMN
+     ============================================================ */
+
+  function renderTimeColumn() {
+    timeColumnEl.innerHTML = '';
+    for (let h = 0; h < 24; h++) {
+      const label = document.createElement('div');
+      label.className = 'time-label';
+      label.textContent = `${String(h).padStart(2, '0')}:00`;
+      timeColumnEl.appendChild(label);
+    }
+    // Sync height with grid
+    timeColumnEl.scrollTop = gridScrollEl.scrollTop;
+    timeColumnEl.addEventListener('scroll', () => {
+      gridScrollEl.scrollTop = timeColumnEl.scrollTop;
+    });
+    gridScrollEl.addEventListener('scroll', () => {
+      timeColumnEl.scrollTop = gridScrollEl.scrollTop;
+    });
+  }
+
+  function renderGridStructure() {
+    gridInnerEl.style.height = `${HOUR_HEIGHT * 24}px`;
+    // Remove existing hour lines except event layer
+    const children = Array.from(gridInnerEl.children).filter(c => c !== eventLayerEl);
+    children.forEach(c => gridInnerEl.removeChild(c));
+
+    for (let h = 0; h < 24; h++) {
+      const hourEl = document.createElement('div');
+      hourEl.className = 'grid-hour';
+      hourEl.style.top = `${h * HOUR_HEIGHT}px`;
+      hourEl.style.left = '0';
+      hourEl.style.right = '0';
+      hourEl.style.position = 'absolute';
+
+      // 5-min slots
+      for (let i = 1; i < 12; i++) {
+        const slotEl = document.createElement('div');
+        slotEl.className = 'grid-slot';
+        slotEl.style.top = `${i * SLOT_HEIGHT}px`;
+        hourEl.appendChild(slotEl);
+      }
+
+      gridInnerEl.appendChild(hourEl);
+    }
+  }
+
+  /* ============================================================
+     RENDERING: EVENTS
+     ============================================================ */
+
+  function eventsOverlap(a, b) {
+    const aStart = timeToMinutes(a.start);
+    const aEnd = timeToMinutes(a.end);
+    const bStart = timeToMinutes(b.start);
+    const bEnd = timeToMinutes(b.end);
+    return aStart < bEnd && bStart < aEnd;
+  }
+
+  function renderEvents() {
+    const template = getCurrentTemplate();
+    if (!template) return;
+    eventLayerEl.innerHTML = '';
+
+    const events = template.events.slice().sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+    for (const ev of events) {
+      const block = document.createElement('div');
+      block.className = 'event-block';
+      block.dataset.eventId = ev.id;
+
+      const startMin = timeToMinutes(ev.start);
+      const endMin = timeToMinutes(ev.end);
+      const durationMin = Math.max(5, endMin - startMin);
+
+      const topPx = startMin / SLOT_MINUTES * SLOT_HEIGHT;
+      const heightPx = durationMin / SLOT_MINUTES * SLOT_HEIGHT;
+
+      block.style.top = `${topPx}px`;
+      block.style.height = `${heightPx}px`;
+
+      // Check overlap to add dashed outline
+      const overlapping = events.some(other => other.id !== ev.id && eventsOverlap(ev, other));
+      if (overlapping) {
+        block.classList.add('event-overlay');
+      }
+
+      if (ev.locked) {
+        block.classList.add('locked');
+      }
+
+      const leftPart = document.createElement('div');
+      leftPart.style.display = 'flex';
+      leftPart.style.flexDirection = 'column';
+      leftPart.style.flex = '1';
+      leftPart.style.minWidth = 0;
+
+      const titleSpan = document.createElement('div');
+      titleSpan.className = 'event-title';
+      titleSpan.textContent = ev.name || 'Untitled';
+
+      const timeSpan = document.createElement('div');
+      timeSpan.className = 'event-time';
+      timeSpan.textContent = `${ev.start} – ${ev.end}`;
+
+      leftPart.appendChild(titleSpan);
+      leftPart.appendChild(timeSpan);
+
+      const rightPart = document.createElement('div');
+      rightPart.style.display = 'flex';
+      rightPart.style.alignItems = 'center';
+      rightPart.style.gap = '4px';
+
+      if (ev.locked) {
+        const lockIcon = document.createElement('span');
+        lockIcon.className = 'event-lock-icon';
+        lockIcon.textContent = '🔒';
+        rightPart.appendChild(lockIcon);
+      }
+
+      block.appendChild(leftPart);
+      block.appendChild(rightPart);
+
+      // Hover tooltip for description
+      if (ev.description) {
+        block.title = ev.description;
+      }
+
+      // Dragging
+      block.addEventListener('mousedown', (e) => {
+        if (ev.locked) {
+          // Show subtle feedback but do not drag
+          block.classList.add('event-overlay');
+          setTimeout(() => block.classList.remove('event-overlay'), 200);
+          return;
+        }
+        isDragging = true;
+        draggingEventId = ev.id;
+        const clickY = e.clientY;
+        const rect = block.getBoundingClientRect();
+        const offsetPx = clickY - rect.top;
+        dragOffsetMinutes = Math.round(offsetPx / SLOT_HEIGHT) * SLOT_MINUTES;
+        block.style.cursor = 'grabbing';
+        e.preventDefault();
+      });
+
+      // Click to open modal (only if not dragging)
+      block.addEventListener('click', (e) => {
+        if (isDragging) return;
+        openEventModal(ev.id);
+        e.stopPropagation();
+      });
+
+      eventLayerEl.appendChild(block);
+    }
+  }
+
+  /* ============================================================
+     DRAG HANDLING
+     ============================================================ */
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging || !draggingEventId) return;
+    const template = getCurrentTemplate();
+    if (!template) return;
+    const ev = template.events.find(ev => ev.id === draggingEventId);
+    if (!ev || ev.locked) return;
+
+    const layerRect = eventLayerEl.getBoundingClientRect();
+    const y = e.clientY - layerRect.top;
+    let minutesFromTop = Math.round(y / SLOT_HEIGHT) * SLOT_MINUTES - dragOffsetMinutes;
+    minutesFromTop = Math.max(0, Math.min(MINUTES_PER_DAY - 5, minutesFromTop));
+
+    const duration = timeToMinutes(ev.end) - timeToMinutes(ev.start);
+    const newStart = minutesFromTop;
+    const newEnd = newStart + duration;
+
+    ev.start = minutesToTime(newStart);
+    ev.end = minutesToTime(newEnd);
+
+    saveToStorage();
+    renderEvents();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      draggingEventId = null;
+      dragOffsetMinutes = 0;
+      renderEvents();
+    }
+  });
+
+  /* ============================================================
+     TEMPLATES PANEL
+     ============================================================ */
+
+  function renderTemplateList() {
+    templateListEl.innerHTML = '';
+    templates.forEach(t => {
+      const item = document.createElement('div');
+      item.className = 'template-item';
+      if (t.id === currentTemplateId) item.classList.add('active');
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'template-name';
+      nameSpan.textContent = t.name || 'Untitled template';
+
+      const editSpan = document.createElement('span');
+      editSpan.className = 'template-edit';
+      editSpan.textContent = '✎';
+
+      // Click to switch template
+      item.addEventListener('click', (e) => {
+        if (e.target === editSpan) return;
+        currentTemplateId = t.id;
+        saveToStorage();
+        renderTemplateList();
+        renderEvents();
+      });
+
+      // Edit title
+      editSpan.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const newName = prompt('Template name:', t.name || '');
+        if (newName !== null && newName.trim() !== '') {
+          t.name = newName.trim();
+          saveToStorage();
+          renderTemplateList();
+        }
+      });
+
+      item.appendChild(nameSpan);
+      item.appendChild(editSpan);
+      templateListEl.appendChild(item);
+    });
+  }
+
+  function addNewTemplate() {
+    const name = prompt('New template name:', 'New Template');
+    const template = {
+      id: 'tpl_' + Math.random().toString(36).slice(2, 9),
+      name: name && name.trim() ? name.trim() : 'New Template',
+      events: []
+    };
+    templates.push(template);
+    currentTemplateId = template.id;
+    saveToStorage();
+    renderTemplateList();
+    renderEvents();
+  }
+
+  /* ============================================================
+     THEME HANDLING
+     ============================================================ */
+
+  function applyTheme(themeId, accentOverride, bgOverride) {
+    const preset = THEME_PRESETS.find(t => t.id === themeId) || THEME_PRESETS[0];
+    const root = document.documentElement;
+
+    root.style.setProperty('--bg-main', bgOverride || preset.bgMain);
+    root.style.setProperty('--bg-panel', preset.bgPanel);
+    root.style.setProperty('--bg-grid', preset.bgGrid);
+    root.style.setProperty('--text-main', preset.textMain);
+    root.style.setProperty('--text-muted', preset.textMuted);
+
+    const accent = accentOverride || preset.accent;
+    root.style.setProperty('--accent', accent);
+    root.style.setProperty('--accent-dark', preset.accentDark);
+    root.style.setProperty('--event-bg', preset.eventBg);
+    root.style.setProperty('--event-text', preset.eventText);
+    root.style.setProperty('--event-overlay-border', preset.overlayBorder);
+
+    // Update color inputs
+    accentColorInput.value = accent;
+    bgColorInput.value = (bgOverride || preset.bgMain);
+  }
+
+  function renderThemeControls() {
+    themePresetSelect.innerHTML = '';
+    THEME_PRESETS.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      if (p.id === currentThemeId) opt.selected = true;
+      themePresetSelect.appendChild(opt);
+    });
+  }
+
+  /* ============================================================
+     ALARMS
+     ============================================================ */
+
+  function renderAlarmControls() {
+    alarmToggle.checked = alarmsEnabled;
+    alarmSoundSelect.innerHTML = '';
+    SOUND_OPTIONS.forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt.id;
+      o.textContent = opt.name;
+      if (opt.id === alarmSoundId) o.selected = true;
+      alarmSoundSelect.appendChild(o);
+    });
+  }
+
+  function getAlarmSoundUrl() {
+    const opt = SOUND_OPTIONS.find(o => o.id === alarmSoundId) || SOUND_OPTIONS[0];
+    return opt.url;
+  }
+
+  function playAlarm(message) {
+    if (!alarmsEnabled) return;
+    alarmAudio.src = getAlarmSoundUrl();
+    alarmAudio.currentTime = 0;
+    alarmAudio.play().catch(() => {});
+    if (message) {
+      // Simple alert; you could replace with a nicer UI if you want.
+      alert(message);
+    }
+  }
+
+  function checkAlarms() {
+    if (!alarmsEnabled) return;
+    const now = new Date();
+    const minutesNow = now.getHours() * 60 + now.getMinutes();
+
+    // Avoid firing multiple times within the same minute
+    if (minutesNow === lastAlarmCheckMinute) return;
+    lastAlarmCheckMinute = minutesNow;
+
+    const template = getCurrentTemplate();
+    if (!template) return;
+
+    template.events.forEach((ev, idx) => {
+      const startMin = timeToMinutes(ev.start);
+      const endMin = timeToMinutes(ev.end);
+
+      if (minutesNow === startMin) {
+        playAlarm(`Start: ${ev.name}`);
+      }
+      if (minutesNow === endMin) {
+        const next = template.events
+          .slice()
+          .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start))
+          .find(e => timeToMinutes(e.start) === endMin);
+        if (next) {
+          playAlarm(`Event "${ev.name}" finished, start "${next.name}".`);
+        } else {
+          playAlarm(`Event "${ev.name}" finished.`);
+        }
+      }
+    });
+  }
+
+  /* ============================================================
+     EVENT MODAL
+     ============================================================ */
+
+  function openEventModal(eventId) {
+    const template = getCurrentTemplate();
+    if (!template) return;
+    const ev = template.events.find(e => e.id === eventId);
+    if (!ev) return;
+    modalEventId = eventId;
+    eventNameInput.value = ev.name || '';
+    eventStartInput.value = ev.start;
+    eventEndInput.value = ev.end;
+    eventDescriptionInput.value = ev.description || '';
+    eventLockedInput.checked = !!ev.locked;
+    modalBackdrop.classList.add('open');
+  }
+
+  function closeEventModal() {
+    modalBackdrop.classList.remove('open');
+    modalEventId = null;
+  }
+
+  function saveEventFromModal() {
+    const template = getCurrentTemplate();
+    if (!template || !modalEventId) return;
+    const ev = template.events.find(e => e.id === modalEventId);
+    if (!ev) return;
+
+    const name = eventNameInput.value.trim() || 'Untitled';
+    let start = eventStartInput.value || '00:00';
+    let end = eventEndInput.value || '00:05';
+
+    // Snap to 5-minute increments
+    const startMin = Math.round(timeToMinutes(start) / SLOT_MINUTES) * SLOT_MINUTES;
+    let endMin = Math.round(timeToMinutes(end) / SLOT_MINUTES) * SLOT_MINUTES;
+    if (endMin <= startMin) endMin = startMin + SLOT_MINUTES;
+
+    ev.name = name;
+    ev.start = minutesToTime(startMin);
+    ev.end = minutesToTime(endMin);
+    ev.description = eventDescriptionInput.value.trim();
+    ev.locked = eventLockedInput.checked;
+
+    saveToStorage();
+    renderEvents();
+    closeEventModal();
+  }
+
+  function deleteEventFromModal() {
+    const template = getCurrentTemplate();
+    if (!template || !modalEventId) return;
+    const idx = template.events.findIndex(e => e.id === modalEventId);
+    if (idx >= 0) {
+      template.events.splice(idx, 1);
+      saveToStorage();
+      renderEvents();
+    }
+    closeEventModal();
+  }
+
+  /* ============================================================
+     ADD EVENT FLOW
+     ============================================================ */
+
+  function addNewEvent() {
+    const template = getCurrentTemplate();
+    if (!template) return;
+    const now = new Date();
+    const minutesNow = now.getHours() * 60 + now.getMinutes();
+    const snapped = Math.round(minutesNow / SLOT_MINUTES) * SLOT_MINUTES;
+    const start = minutesToTime(snapped);
+    const end = minutesToTime(snapped + 30); // default 30 min
+
+    const ev = {
+      id: generateId(),
+      name: 'New Event',
+      start,
+      end,
+      description: '',
+      locked: false
+    };
+    template.events.push(ev);
+    saveToStorage();
+    renderEvents();
+    openEventModal(ev.id);
+  }
+
+  /* ============================================================
+     INITIALIZATION
+     ============================================================ */
+
+  function initShareCode() {
+    const params = new URLSearchParams(window.location.search);
+    shareCode = params.get('schedule') || 'default';
+    shareCodeDisplay.textContent = shareCode;
+  }
+
+  function init() {
+    initShareCode();
+    loadFromStorage();
+
+    renderTimeColumn();
+    renderGridStructure();
+    renderEvents();
+
+    renderTemplateList();
+    renderThemeControls();
+    renderAlarmControls();
+
+    applyTheme(currentThemeId, customAccent, customBg);
+
+    // Scroll to around 06:00 by default
+    const targetMin = 6 * 60;
+    const targetPx = (targetMin / SLOT_MINUTES) * SLOT_HEIGHT;
+    gridScrollEl.scrollTop = Math.max(0, targetPx - 100);
+    timeColumnEl.scrollTop = gridScrollEl.scrollTop;
+
+    // Panel toggle
+    panelToggleButton.addEventListener('click', () => {
+      sidePanelEl.classList.toggle('open');
+    });
+
+    // Add template
+    addTemplateButton.addEventListener('click', () => {
+      addNewTemplate();
+    });
+
+    // Theme changes
+    themePresetSelect.addEventListener('change', () => {
+      currentThemeId = themePresetSelect.value;
+      applyTheme(currentThemeId, customAccent, customBg);
+      saveToStorage();
+    });
+
+    accentColorInput.addEventListener('input', () => {
+      customAccent = accentColorInput.value;
+      applyTheme(currentThemeId, customAccent, customBg);
+      saveToStorage();
+    });
+
+    bgColorInput.addEventListener('input', () => {
+      customBg = bgColorInput.value;
+      applyTheme(currentThemeId, customAccent, customBg);
+      saveToStorage();
+    });
+
+    // Alarms
+    alarmToggle.addEventListener('change', () => {
+      alarmsEnabled = alarmToggle.checked;
+      saveToStorage();
+    });
+
+    alarmSoundSelect.addEventListener('change', () => {
+      alarmSoundId = alarmSoundSelect.value;
+      saveToStorage();
+    });
+
+    // Add event button
+    addEventButton.addEventListener('click', () => {
+      addNewEvent();
+    });
+
+    // Modal
+    modalCloseButton.addEventListener('click', closeEventModal);
+    modalBackdrop.addEventListener('click', (e) => {
+      if (e.target === modalBackdrop) closeEventModal();
+    });
+    saveEventButton.addEventListener('click', saveEventFromModal);
+    deleteEventButton.addEventListener('click', deleteEventFromModal);
+
+    // Alarm timer (check every 30 seconds)
+    setInterval(checkAlarms, 30000);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
