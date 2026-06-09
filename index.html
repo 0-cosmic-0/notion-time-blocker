@@ -4,325 +4,399 @@
   <meta charset="UTF-8" />
   <title>Notion Time Blocker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <!-- Inter font to match Notion -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
   <style>
-    /* =========================
-       THEME & GLOBAL VARIABLES
-       ========================= */
-
     :root {
-      /* These are defaults; JS will override them when theme changes. */
+      /* THEME VARIABLES – you can safely change these defaults */
       --bg-main: #F0EFED;
-      --bg-panel: #FFFFFF;
+      --bg-panel: #E4E2DE;
       --bg-grid: #FFFFFF;
-      --border-subtle: #E0E0E0;
+      --accent: #2E7CD1;
+      --accent-soft: #233850;
       --text-main: #191919;
       --text-muted: #555555;
-      --accent: #2E7CD1;
-      --accent-dark: #233850;
       --event-bg: #2E7CD1;
       --event-text: #FFFFFF;
-      --event-overlay-border: #2E7CD1;
+
+      --border-subtle: #D0CEC8;
+      --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+      --hour-label-width: 60px;
+      --top-bar-height: 52px;
+      --right-panel-width: 280px;
     }
 
     * {
       box-sizing: border-box;
     }
 
-    body {
+    html, body {
       margin: 0;
-      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 0;
+      height: 100%;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg-main);
       color: var(--text-main);
-      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
     }
 
     .app-root {
+      width: 100%;
+      max-width: 1200px;
+      height: 100vh;
+      padding: 12px;
       display: flex;
       flex-direction: column;
-      height: 100vh;
-      width: 100vw;
+      gap: 8px;
     }
 
-    /* =========================
-       TOP BAR
-       ========================= */
+    /* TOP BAR */
 
     .top-bar {
+      height: var(--top-bar-height);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 16px;
-      border-bottom: 1px solid var(--border-subtle);
+      padding: 8px 12px;
       background: var(--bg-panel);
-    }
-
-    .top-bar-left {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .top-bar-main {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-
-    .app-title {
-      font-size: 16px;
-      font-weight: 600;
-    }
-
-    .app-subtitle {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .current-indicator {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .top-bar-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .small-label {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .share-code {
-      font-size: 11px;
-      padding: 2px 6px;
-      border-radius: 999px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-soft);
       border: 1px solid var(--border-subtle);
-      background: #ffffffaa;
     }
 
-    .icon-button {
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 12px;
-      color: var(--text-main);
-    }
-
-    .icon-button:hover {
-      background: #00000008;
-    }
-
-    /* =========================
-       MAIN LAYOUT
-       ========================= */
-
-    .main-layout {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-      background: var(--bg-main);
-    }
-
-    .schedule-container {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-      border-right: 1px solid var(--border-subtle);
-      background: var(--bg-grid);
-      position: relative;
-    }
-
-    .time-column {
-      width: 64px;
-      border-right: 1px solid var(--border-subtle);
-      background: var(--bg-panel);
-      font-size: 11px;
-      color: var(--text-muted);
-      position: relative;
-      overflow-y: auto;
-    }
-
-    .time-label {
-      height: 1px; /* will be stretched dynamically */
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding-top: 4px;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .time-label.early,
-    .time-label.late {
-      display: none;
-    }
-
-    .time-label.visible {
-      display: flex;
-    }
-
-    .grid-scroll {
-      flex: 1;
-      overflow-y: auto;
-      position: relative;
-    }
-
-    .grid-inner {
-      position: relative;
-      min-width: 260px;
-    }
-
-    .grid-hour {
-      position: absolute;
-      left: 0;
-      right: 0;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .grid-hour.early,
-    .grid-hour.late {
-      display: none;
-    }
-
-    .grid-hour.visible {
-      display: block;
-    }
-
-    /* No inner 5-min lines anymore to keep events clean */
-
-    .event-layer {
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      top: 0;
-      bottom: 0;
-      pointer-events: auto;
-    }
-
-    .event-block {
-      position: absolute;
-      left: 0;
-      right: 0;
-      border-radius: 6px;
-      padding: 4px 8px;
-      font-size: 11px;
-      line-height: 1.3;
-      background: var(--event-bg);
-      color: var(--event-text);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-      cursor: grab;
-      pointer-events: auto;
+    .top-left {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 4px;
-      /* Space between events: we shrink height slightly and add margin */
-      margin-top: 2px;
-      margin-bottom: 2px;
+      gap: 8px;
+      min-width: 0;
     }
 
-    .event-block.locked {
-      cursor: default;
-      opacity: 0.9;
-    }
-
-    .event-title {
-      font-weight: 500;
+    .template-title {
+      font-weight: 600;
+      font-size: 16px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .event-time {
-      font-size: 10px;
-      opacity: 0.9;
+    .template-title[contenteditable="true"] {
+      outline: none;
+      border-bottom: 1px dashed transparent;
+    }
+
+    .template-title[contenteditable="true"]:focus {
+      border-bottom-color: var(--accent);
+    }
+
+    .top-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-muted);
       white-space: nowrap;
     }
 
-    .event-lock-icon {
-      font-size: 10px;
-      opacity: 0.9;
-      margin-left: 4px;
+    .current-time-label {
+      font-weight: 500;
+      color: var(--accent-soft);
     }
 
-    .event-overlay {
-      border: 1px dashed var(--event-overlay-border);
+    .current-event-label {
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    /* =========================
-       SLIDE-OUT PANEL (TEMPLATES + THEME + ALARMS)
-       ========================= */
-
-    .side-panel {
-      position: absolute;
-      top: 40px;
-      right: 8px;
-      width: 300px;
-      max-width: 80vw;
-      background: var(--bg-panel);
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    .menu-button {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
       border: 1px solid var(--border-subtle);
-      padding: 12px;
-      font-size: 12px;
-      display: none;
+      background: var(--bg-grid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      color: var(--text-muted);
+    }
+
+    .menu-button:hover {
+      background: var(--bg-panel);
+    }
+
+    /* MAIN LAYOUT */
+
+    .main-layout {
+      flex: 1;
+      display: flex;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .schedule-container {
+      flex: 1;
+      min-width: 0;
+      background: var(--bg-grid);
+      border-radius: 8px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border-subtle);
+      display: flex;
       flex-direction: column;
-      gap: 12px;
+      overflow: hidden;
+    }
+
+    .schedule-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(0,0,0,0.01);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .schedule-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toggle-early {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-panel);
+      cursor: pointer;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .toggle-early.active {
+      border-color: var(--accent);
+      color: var(--accent-soft);
+    }
+
+    .schedule-header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .add-event-btn {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .add-event-btn:hover {
+      background: #2569ad;
+    }
+
+    /* GRID AREA */
+
+    .schedule-body {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      position: relative;
+    }
+
+    .hour-labels {
+      width: var(--hour-label-width);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .hour-label {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 2px 6px 0 2px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .hour-label.hidden-hour {
+      display: none;
+    }
+
+    .grid-wrapper {
+      flex: 1;
+      position: relative;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--bg-grid);
+    }
+
+    .grid-hours {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .grid-hour {
+      flex: 1;
+      /* no border-bottom: we removed hour lines completely */
+    }
+
+    .event-layer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      pointer-events: auto; /* IMPORTANT: allows drag & click */
+    }
+
+    .event-block {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      border-radius: 4px; /* your requested radius */
+      background: var(--event-bg);
+      color: var(--event-text);
+      padding: 2px 6px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      cursor: grab;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      margin: 1px 0; /* small gap between events */
+    }
+
+    .event-block.locked {
+      opacity: 0.85;
+      cursor: default;
+    }
+
+    .event-inner-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 4px;
+      width: 100%;
+    }
+
+    .event-time {
+      font-weight: 500;
+      font-size: 10px;
+      text-align: left;
+    }
+
+    .event-title {
+      font-weight: 600;
+      font-size: 10px;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-lock-icon {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      font-size: 10px;
+      opacity: 0.8;
+    }
+
+    .event-overlaying {
+      outline: 1px dashed rgba(255,255,255,0.8);
+      outline-offset: -2px;
+    }
+
+    .event-block:hover {
+      filter: brightness(1.05);
+    }
+
+    /* Tooltip for description on hover */
+    .event-block[data-description]:hover::after {
+      content: attr(data-description);
+      position: absolute;
+      left: 0;
+      top: 100%;
+      margin-top: 4px;
+      max-width: 260px;
+      background: #111;
+      color: #fff;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      white-space: normal;
       z-index: 20;
     }
 
-    .side-panel.open {
+    /* RIGHT PANEL (templates + theme + alarms) */
+
+    .right-panel {
+      width: var(--right-panel-width);
+      background: var(--bg-panel);
+      border-radius: 8px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border-subtle);
       display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 8px;
+      min-width: 0;
+      transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
-    .panel-section-title {
-      font-size: 11px;
+    .right-panel.hidden {
+      transform: translateX(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .right-section-title {
+      font-size: 12px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
       color: var(--text-muted);
       margin-bottom: 4px;
     }
 
     .template-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
       max-height: 160px;
       overflow-y: auto;
-      border-radius: 8px;
-      border: 1px solid var(--border-subtle);
-      padding: 4px;
-      background: #fafafa;
     }
 
     .template-item {
-      padding: 4px 6px;
-      border-radius: 6px;
-      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 6px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      background: var(--bg-grid);
+      cursor: pointer;
       font-size: 12px;
-    }
-
-    .template-item:hover {
-      background: #00000006;
+      border: 1px solid transparent;
     }
 
     .template-item.active {
-      background: #2E7CD10f;
-      border: 1px solid var(--accent);
+      border-color: var(--accent);
+      background: #dde9f7;
     }
 
     .template-name {
@@ -332,283 +406,351 @@
       text-overflow: ellipsis;
     }
 
-    .template-edit {
-      font-size: 10px;
-      color: var(--text-muted);
-      cursor: pointer;
+    .template-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 4px;
     }
 
-    .panel-row {
+    .template-delete {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .template-delete:hover {
+      color: #b00020;
+    }
+
+    .add-template-btn {
+      margin-top: 4px;
+      width: 100%;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px dashed var(--border-subtle);
+      background: transparent;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .add-template-btn:hover {
+      border-style: solid;
+      color: var(--accent-soft);
+    }
+
+    .theme-controls,
+    .alarm-controls {
+      padding: 6px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.4);
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .theme-row,
+    .alarm-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 4px;
+      gap: 6px;
     }
 
-    .panel-row label {
+    .theme-row label,
+    .alarm-row label {
       font-size: 11px;
       color: var(--text-muted);
     }
 
-    .panel-row select,
-    .panel-row input[type="color"],
-    .panel-row input[type="range"] {
-      font-size: 11px;
-      padding: 2px 4px;
-      border-radius: 6px;
+    .color-input {
+      width: 70px;
+      height: 22px;
+      padding: 0;
+      border-radius: 4px;
       border: 1px solid var(--border-subtle);
-      background: #ffffff;
+      background: #fff;
     }
 
-    .panel-row input[type="checkbox"] {
-      transform: scale(0.9);
+    .preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
     }
 
-    .panel-note {
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-
-    .panel-divider {
-      height: 1px;
-      background: var(--border-subtle);
-      margin: 4px 0;
-    }
-
-    .primary-button {
-      border: none;
+    .preset-btn {
       border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 12px;
-      background: var(--accent);
-      color: #ffffff;
+      border: 1px solid var(--border-subtle);
+      padding: 2px 6px;
+      font-size: 10px;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .preset-btn:hover {
+      border-color: var(--accent);
+    }
+
+    .alarm-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+    }
+
+    .alarm-toggle input {
       cursor: pointer;
     }
 
-    .primary-button:hover {
-      background: var(--accent-dark);
+    .alarm-select,
+    .alarm-volume {
+      font-size: 11px;
     }
 
-    /* =========================
-       EVENT MODAL
-       ========================= */
+    .alarm-volume {
+      width: 100px;
+    }
+
+    .alarm-status {
+      font-size: 10px;
+      color: var(--text-muted);
+      min-height: 12px;
+    }
+
+    /* MODAL */
 
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.25);
+      background: rgba(0,0,0,0.35);
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 30;
+      z-index: 100;
     }
 
-    .modal-backdrop.open {
+    .modal-backdrop.visible {
       display: flex;
     }
 
     .modal {
       width: 320px;
       max-width: 90vw;
-      background: var(--bg-panel);
-      border-radius: 12px;
-      padding: 12px 14px;
+      background: var(--bg-grid);
+      border-radius: 8px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      border: 1px solid var(--border-subtle);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
       font-size: 12px;
     }
 
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-
     .modal-title {
-      font-size: 13px;
       font-weight: 600;
+      margin-bottom: 4px;
     }
 
-    .modal-close {
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      font-size: 14px;
-      line-height: 1;
-    }
-
-    .modal-field {
-      margin-bottom: 8px;
+    .modal-row {
       display: flex;
       flex-direction: column;
       gap: 2px;
     }
 
-    .modal-field label {
+    .modal-row label {
       font-size: 11px;
       color: var(--text-muted);
     }
 
-    .modal-field input[type="text"],
-    .modal-field input[type="time"],
-    .modal-field textarea {
+    .modal-row input,
+    .modal-row textarea,
+    .modal-row select {
+      font-family: inherit;
       font-size: 12px;
       padding: 4px 6px;
-      border-radius: 6px;
+      border-radius: 4px;
       border: 1px solid var(--border-subtle);
-      font-family: inherit;
+      background: #fff;
     }
 
-    .modal-field textarea {
+    .modal-row textarea {
       resize: vertical;
-      min-height: 48px;
+      min-height: 50px;
     }
 
     .modal-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 8px;
+      margin-top: 4px;
     }
 
-    .modal-footer-left {
+    .modal-left-actions {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 11px;
-      color: var(--text-muted);
     }
 
-    .danger-button {
-      border: none;
+    .modal-right-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn {
       border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-panel);
       padding: 4px 10px;
       font-size: 11px;
-      background: #f44336;
-      color: #ffffff;
       cursor: pointer;
     }
 
-    .danger-button:hover {
-      background: #d32f2f;
+    .btn-primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
     }
 
-    /* =========================
-       RESPONSIVE
-       ========================= */
+    .btn-danger {
+      border-color: #b00020;
+      color: #b00020;
+      background: #fff;
+    }
+
+    .btn:hover {
+      filter: brightness(0.97);
+    }
+
+    .lock-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+    }
+
+    /* SMALL SCREENS: hide right panel by default, use menu button */
 
     @media (max-width: 900px) {
-      .app-subtitle {
-        display: none;
+      .right-panel {
+        position: absolute;
+        right: 12px;
+        top: calc(12px + var(--top-bar-height) + 8px);
+        height: calc(100vh - var(--top-bar-height) - 32px);
+        z-index: 50;
       }
     }
   </style>
 </head>
 <body>
-<div class="app-root">
-  <!-- TOP BAR -->
-  <div class="top-bar">
-    <div class="top-bar-left">
-      <div class="top-bar-main">
-        <div class="app-title">Daily Time Blocker</div>
-        <div class="app-subtitle">5‑minute schedule · drag & drop · templates</div>
+  <div class="app-root">
+    <!-- TOP BAR -->
+    <div class="top-bar">
+      <div class="top-left">
+        <!-- Template title (editable) -->
+        <div id="templateTitle" class="template-title" contenteditable="true"></div>
       </div>
-      <div class="current-indicator" id="currentIndicator">
-        <!-- Filled by JS: current time + event -->
+      <div class="top-right">
+        <div class="current-time-label" id="currentTimeLabel">--:--</div>
+        <div class="current-event-label" id="currentEventLabel">No current event</div>
+        <button class="menu-button" id="menuToggleBtn" title="Templates, themes, alarms">⋯</button>
       </div>
     </div>
-    <div class="top-bar-right">
-      <div class="small-label">Share code:</div>
-      <div class="share-code" id="shareCodeDisplay"></div>
-      <button class="icon-button" id="toggleHoursButton" title="Show/hide early and late hours">
-        ⏱ <span>Early/Late</span>
-      </button>
-      <button class="icon-button" id="addEventButton" title="Add event to current template">
-        ➕ <span>Add event</span>
-      </button>
-      <button class="icon-button" id="panelToggleButton" title="Templates, themes, alarms">
-        ☰ <span>Menu</span>
-      </button>
-    </div>
-  </div>
 
-  <!-- MAIN LAYOUT -->
-  <div class="main-layout">
-    <!-- SCHEDULE -->
-    <div class="schedule-container">
-      <div class="time-column" id="timeColumn"></div>
-      <div class="grid-scroll" id="gridScroll">
-        <div class="grid-inner" id="gridInner">
-          <!-- Hours + events injected by JS -->
-          <div class="event-layer" id="eventLayer"></div>
+    <!-- MAIN LAYOUT -->
+    <div class="main-layout">
+      <!-- SCHEDULE -->
+      <div class="schedule-container">
+        <div class="schedule-header">
+          <div class="schedule-header-left">
+            <span>Daily Time Blocker</span>
+            <button class="toggle-early" id="toggleEarlyBtn">Show 00:00–06:00 & 23:00–24:00</button>
+          </div>
+          <div class="schedule-header-right">
+            <button class="add-event-btn" id="addEventBtn">Add Event</button>
+          </div>
+        </div>
+        <div class="schedule-body">
+          <div class="hour-labels" id="hourLabels"></div>
+          <div class="grid-wrapper" id="gridWrapper">
+            <div class="grid-hours" id="gridHours"></div>
+            <div class="event-layer" id="eventLayer"></div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- SIDE PANEL (TEMPLATES + THEME + ALARMS) -->
-  <div class="side-panel" id="sidePanel">
-    <!-- Templates -->
-    <div>
-      <div class="panel-section-title">Templates</div>
-      <div class="template-list" id="templateList"></div>
-      <div style="margin-top:6px; display:flex; justify-content:space-between; gap:8px;">
-        <button class="primary-button" id="addTemplateButton">+ Add template</button>
-        <span class="panel-note">Click a template to switch. Titles are editable.</span>
-      </div>
-    </div>
+      <!-- RIGHT PANEL -->
+      <div class="right-panel hidden" id="rightPanel">
+        <!-- Templates -->
+        <div>
+          <div class="right-section-title">Templates</div>
+          <div class="template-list" id="templateList"></div>
+          <button class="add-template-btn" id="addTemplateBtn">+ Add Template</button>
+        </div>
 
-    <div class="panel-divider"></div>
+        <!-- Theme controls -->
+        <div class="theme-controls">
+          <div class="right-section-title">Theme</div>
+          <div class="theme-row">
+            <label>Background</label>
+            <input type="color" id="bgColorInput" class="color-input" />
+          </div>
+          <div class="theme-row">
+            <label>Grid / Panels</label>
+            <input type="color" id="panelColorInput" class="color-input" />
+          </div>
+          <div class="theme-row">
+            <label>Accent</label>
+            <input type="color" id="accentColorInput" class="color-input" />
+          </div>
+          <div class="theme-row">
+            <label>Event Background</label>
+            <input type="color" id="eventBgColorInput" class="color-input" />
+          </div>
+          <div class="theme-row">
+            <label>Event Text</label>
+            <input type="color" id="eventTextColorInput" class="color-input" />
+          </div>
+          <div class="theme-row">
+            <label>General Text</label>
+            <input type="color" id="textColorInput" class="color-input" />
+          </div>
+          <div class="preset-row">
+            <button class="preset-btn" data-preset="notion">Notion Summer</button>
+            <button class="preset-btn" data-preset="dark">Dark Focus</button>
+            <button class="preset-btn" data-preset="pastel">Soft Pastel</button>
+          </div>
+        </div>
 
-    <!-- Theme -->
-    <div>
-      <div class="panel-section-title">Theme</div>
-      <div class="panel-row">
-        <label for="themePresetSelect">Preset</label>
-        <select id="themePresetSelect"></select>
-      </div>
-      <div class="panel-row">
-        <label>Background</label>
-        <input type="color" id="bgColorInput" />
-      </div>
-      <div class="panel-row">
-        <label>Accent</label>
-        <input type="color" id="accentColorInput" />
-      </div>
-      <div class="panel-row">
-        <label>Event text</label>
-        <input type="color" id="eventTextColorInput" />
-      </div>
-      <div class="panel-row">
-        <label>General text</label>
-        <input type="color" id="textMainColorInput" />
-      </div>
-      <div class="panel-note">
-        Theme is global and applies to all templates.
-      </div>
-    </div>
-
-    <div class="panel-divider"></div>
-
-    <!-- Alarms -->
-    <div>
-      <div class="panel-section-title">Alarms</div>
-      <div class="panel-row">
-        <label for="alarmToggle">Enable alarms</label>
-        <input type="checkbox" id="alarmToggle" />
-      </div>
-      <div class="panel-row">
-        <label for="alarmSoundSelect">Sound</label>
-        <select id="alarmSoundSelect"></select>
-      </div>
-      <div class="panel-row">
-        <label for="alarmVolumeInput">Volume</label>
-        <input type="range" id="alarmVolumeInput" min="0" max="1" step="0.05" />
-      </div>
-      <div class="panel-note">
-        Plays at start and end of each event. If another event follows, message will say:
-        “Event A finished, start Event B”.
+        <!-- Alarm controls -->
+        <div class="alarm-controls">
+          <div class="right-section-title">Alarms</div>
+          <div class="alarm-row">
+            <div class="alarm-toggle">
+              <input type="checkbox" id="alarmToggle" />
+              <label for="alarmToggle">Enable alarms</label>
+            </div>
+          </div>
+          <div class="alarm-row">
+            <label>Sound</label>
+            <select id="alarmSoundSelect" class="alarm-select">
+              <option value="chime">Soft Chime</option>
+              <option value="bell">Bell</option>
+              <option value="ping">Ping</option>
+            </select>
+          </div>
+          <div class="alarm-row">
+            <label>Volume</label>
+            <input type="range" id="alarmVolume" class="alarm-volume" min="0" max="1" step="0.05" value="0.7" />
+          </div>
+          <div class="alarm-status" id="alarmStatus"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -616,945 +758,877 @@
   <!-- EVENT MODAL -->
   <div class="modal-backdrop" id="modalBackdrop">
     <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title" id="modalTitle">Edit event</div>
-        <button class="modal-close" id="modalCloseButton">✕</button>
+      <div class="modal-title" id="modalTitle">Edit Event</div>
+      <div class="modal-row">
+        <label for="eventTitleInput">Title</label>
+        <input type="text" id="eventTitleInput" />
       </div>
-      <div class="modal-body">
-        <div class="modal-field">
-          <label for="eventNameInput">Name</label>
-          <input type="text" id="eventNameInput" />
-        </div>
-        <div class="modal-field">
-          <label>Time</label>
-          <div style="display:flex; gap:6px;">
-            <input type="time" id="eventStartInput" step="300" />
-            <input type="time" id="eventEndInput" step="300" />
-          </div>
-        </div>
-        <div class="modal-field">
-          <label for="eventDescriptionInput">Description</label>
-          <textarea id="eventDescriptionInput"></textarea>
-        </div>
-        <div class="modal-field" style="flex-direction:row; align-items:center; justify-content:space-between;">
-          <label for="eventLockedInput">Locked (cannot move)</label>
+      <div class="modal-row">
+        <label for="eventStartInput">Start (HH:MM)</label>
+        <input type="time" id="eventStartInput" step="300" />
+      </div>
+      <div class="modal-row">
+        <label for="eventEndInput">End (HH:MM)</label>
+        <input type="time" id="eventEndInput" step="300" />
+      </div>
+      <div class="modal-row">
+        <label for="eventDescriptionInput">Description</label>
+        <textarea id="eventDescriptionInput"></textarea>
+      </div>
+      <div class="modal-row">
+        <label class="lock-toggle">
           <input type="checkbox" id="eventLockedInput" />
-        </div>
+          Lock event (cannot be moved)
+        </label>
       </div>
       <div class="modal-footer">
-        <div class="modal-footer-left">
-          <button class="danger-button" id="deleteEventButton">Delete</button>
+        <div class="modal-left-actions">
+          <button class="btn btn-danger" id="deleteEventBtn">Delete</button>
         </div>
-        <button class="primary-button" id="saveEventButton">Save</button>
+        <div class="modal-right-actions">
+          <button class="btn" id="cancelEventBtn">Cancel</button>
+          <button class="btn btn-primary" id="saveEventBtn">Save</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- AUDIO (ALARM) -->
-  <audio id="alarmAudio"></audio>
-</div>
+  <script>
+    /************************************************************
+     * HIGH-LEVEL DATA MODEL
+     *
+     * - Templates: array of { id, name, events }
+     * - Events: { id, title, startMinutes, endMinutes, description, locked }
+     * - All state is stored in localStorage keyed by URL (share-code style)
+     *
+     * You can safely:
+     * - Change defaultTemplates
+     * - Change themePresets
+     * - Change defaultTheme
+     ************************************************************/
 
-<script>
-  /* ============================================================
-     CONFIGURATION SECTION (SAFE TO EDIT)
-     ============================================================ */
+    const STORAGE_KEY = "notion-time-blocker-v2";
 
-  const THEME_PRESETS = [
-    {
-      id: 'notion-summer',
-      name: 'Notion Summer (yours)',
-      bgMain: '#F0EFED',
-      bgPanel: '#FFFFFF',
-      bgGrid: '#FFFFFF',
-      textMain: '#191919',
-      textMuted: '#555555',
-      accent: '#2E7CD1',
-      accentDark: '#233850',
-      eventBg: '#2E7CD1',
-      eventText: '#FFFFFF',
-      overlayBorder: '#2E7CD1'
-    },
-    {
-      id: 'minimal-light',
-      name: 'Minimal Light',
-      bgMain: '#F5F5F5',
-      bgPanel: '#FFFFFF',
-      bgGrid: '#FFFFFF',
-      textMain: '#222222',
-      textMuted: '#777777',
-      accent: '#3B82F6',
-      accentDark: '#1D4ED8',
-      eventBg: '#3B82F6',
-      eventText: '#FFFFFF',
-      overlayBorder: '#3B82F6'
-    },
-    {
-      id: 'soft-pastel',
-      name: 'Soft Pastel',
-      bgMain: '#FDF7FF',
-      bgPanel: '#FFFFFF',
-      bgGrid: '#FFFFFF',
-      textMain: '#2D1B3D',
-      textMuted: '#7A6A8A',
-      accent: '#F472B6',
-      accentDark: '#DB2777',
-      eventBg: '#A855F7',
-      eventText: '#FFFFFF',
-      overlayBorder: '#F472B6'
-    },
-    {
-      id: 'sunrise',
-      name: 'Sunrise Warm',
-      bgMain: '#FFF7ED',
-      bgPanel: '#FFFFFF',
-      bgGrid: '#FFFFFF',
-      textMain: '#3F2A1D',
-      textMuted: '#8C6B4F',
-      accent: '#FB923C',
-      accentDark: '#EA580C',
-      eventBg: '#F97316',
-      eventText: '#FFFFFF',
-      overlayBorder: '#FB923C'
-    },
-    {
-      id: 'forest',
-      name: 'Forest Calm',
-      bgMain: '#ECFDF5',
-      bgPanel: '#FFFFFF',
-      bgGrid: '#FFFFFF',
-      textMain: '#064E3B',
-      textMuted: '#6B7280',
-      accent: '#10B981',
-      accentDark: '#047857',
-      eventBg: '#059669',
-      eventText: '#ECFDF5',
-      overlayBorder: '#10B981'
-    },
-    {
-      id: 'dark-blue',
-      name: 'Dark Blue',
-      bgMain: '#0F172A',
-      bgPanel: '#020617',
-      bgGrid: '#020617',
-      textMain: '#E5E7EB',
-      textMuted: '#9CA3AF',
-      accent: '#3B82F6',
-      accentDark: '#1D4ED8',
-      eventBg: '#1D4ED8',
-      eventText: '#E5E7EB',
-      overlayBorder: '#3B82F6'
-    }
-  ];
+    const defaultTemplates = [
+      {
+        id: "default-summer",
+        name: "Default Summer Routine",
+        events: [
+          // Example events – you can edit or remove these
+          { id: "e1", title: "Arise & Morning Routine", startMinutes: 6 * 60, endMinutes: 8 * 60, description: "Water, meditate, plan, stretch", locked: false },
+          { id: "e2", title: "Reading", startMinutes: 8 * 60, endMinutes: 8 * 60 + 30, description: "Book or Khan Academy reading", locked: false },
+          { id: "e3", title: "Algebra 2", startMinutes: 9 * 60 + 30, endMinutes: 12 * 60, description: "Khan Academy + notes", locked: false },
+          { id: "e4", title: "Lunch & Break", startMinutes: 12 * 60, endMinutes: 13 * 60 + 30, description: "Rest + food", locked: false },
+          { id: "e5", title: "Study Hall Topic 1", startMinutes: 13 * 60 + 30, endMinutes: 15 * 60, description: "", locked: false },
+          { id: "e6", title: "Study Hall Topic 2", startMinutes: 15 * 60, endMinutes: 16 * 60 + 30, description: "", locked: false },
+          { id: "e7", title: "Piano", startMinutes: 16 * 60 + 30, endMinutes: 17 * 60, description: "", locked: false },
+          { id: "e8", title: "Workout", startMinutes: 18 * 60, endMinutes: 19 * 60, description: "", locked: false },
+          { id: "e9", title: "Break", startMinutes: 19 * 60 + 30, endMinutes: 21 * 60, description: "", locked: false },
+          { id: "e10", title: "Wind Down", startMinutes: 21 * 60, endMinutes: 21 * 60 + 30, description: "", locked: false },
+          { id: "e11", title: "Sleep", startMinutes: 21 * 60 + 30, endMinutes: 24 * 60 + 6 * 60, description: "", locked: true }
+        ]
+      }
+    ];
 
-  const DEFAULT_THEME = 'notion-summer';
+    const defaultTheme = {
+      bgMain: "#F0EFED",
+      bgPanel: "#E4E2DE",
+      bgGrid: "#FFFFFF",
+      accent: "#2E7CD1",
+      eventBg: "#2E7CD1",
+      eventText: "#FFFFFF",
+      textMain: "#191919"
+    };
 
-  const SOUND_OPTIONS = [
-    { id: 'default', name: 'Default alarm', url: 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg' },
-    { id: 'beep', name: 'Short beep', url: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' },
-    { id: 'digital', name: 'Digital tone', url: 'https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg' },
-    { id: 'bell', name: 'Soft bell', url: 'https://actions.google.com/sounds/v1/alarms/medium_bell_ringing_near.ogg' }
-  ];
-
-  const DEFAULT_TEMPLATE = {
-    id: 'default-summer',
-    name: 'Default Summer Routine',
-    events: [
-      { id: 'e1', name: 'Arise (+Morning Routine)', start: '06:00', end: '06:30', description: 'Water, Meditate, Plan, and Stretch', locked: false },
-      { id: 'e2', name: 'Morning Run', start: '06:30', end: '07:00', description: 'Quick loop to the park and back', locked: false },
-      { id: 'e3', name: 'Cooldown + Journal', start: '07:00', end: '07:15', description: 'Stretch + journaling + plan details', locked: false },
-      { id: 'e4', name: 'Coding', start: '07:15', end: '09:00', description: 'Unity + Khan Academy programming', locked: false },
-      { id: 'e5', name: 'Break + Breakfast', start: '09:00', end: '09:20', description: 'Craft break + breakfast', locked: false },
-      { id: 'e6', name: 'Theory', start: '09:20', end: '09:40', description: 'Workbook + ear training', locked: false },
-      { id: 'e7', name: 'Reading', start: '09:40', end: '10:00', description: 'Book or Khan reading course', locked: false },
-      { id: 'e8', name: 'Algebra 2', start: '10:00', end: '11:45', description: 'Khan Academy + notes', locked: false },
-      { id: 'e9', name: 'Lunch and Break', start: '11:45', end: '12:15', description: 'Lunch + rest', locked: false },
-      { id: 'e10', name: 'Study Hall Topic 1', start: '12:15', end: '13:00', description: 'Study topic 1 or move classes', locked: false },
-      { id: 'e11', name: 'Study Hall Topic 2', start: '13:00', end: '13:45', description: 'Video editing, college, competitions, SAT, etc.', locked: false },
-      { id: 'e12', name: 'Piano', start: '13:45', end: '14:45', description: '5+ pages + other pieces', locked: false },
-      { id: 'e13', name: 'Vocal Practice', start: '14:45', end: '15:30', description: 'Warm up + rehearse pieces', locked: false },
-      { id: 'e14', name: 'Workout', start: '15:30', end: '16:00', description: 'Run or workout + stretching', locked: false },
-      { id: 'e15', name: 'Shower + Self Care', start: '16:00', end: '16:45', description: 'Shower + self care', locked: false },
-      { id: 'e16', name: 'Break', start: '16:45', end: '22:00', description: 'Shows, crafts, outside, games, courses, no scrolling', locked: false },
-      { id: 'e17', name: 'Wind down', start: '22:00', end: '22:30', description: 'Devices away, clean room, stretch, get ready to sleep', locked: false },
-      { id: 'e18', name: 'Sleep', start: '22:30', end: '23:00', description: 'Sleep (or earlier)', locked: false }
-    ]
-  };
-
-  /* ============================================================
-     INTERNAL STATE
-     ============================================================ */
-
-  const MINUTES_PER_DAY = 24 * 60;
-  const SLOT_MINUTES = 5;
-
-  let HOUR_HEIGHT = 48; // will be adjusted to fill vertical space
-  const SLOT_HEIGHT = 4; // base; we’ll scale HOUR_HEIGHT but keep ratio
-
-  let templates = [];
-  let currentTemplateId = null;
-  let draggingEventId = null;
-  let dragOffsetMinutes = 0;
-  let isDragging = false;
-
-  let shareCode = null;
-
-  let alarmsEnabled = false;
-  let alarmSoundId = 'default';
-  let alarmVolume = 0.8;
-  let lastAlarmCheckMinute = null;
-
-  let currentThemeId = DEFAULT_THEME;
-  let customAccent = null;
-  let customBg = null;
-  let customEventText = null;
-  let customTextMain = null;
-
-  let showEarlyLate = false;
-
-  const timeColumnEl = document.getElementById('timeColumn');
-  const gridScrollEl = document.getElementById('gridScroll');
-  const gridInnerEl = document.getElementById('gridInner');
-  const eventLayerEl = document.getElementById('eventLayer');
-  const sidePanelEl = document.getElementById('sidePanel');
-  const panelToggleButton = document.getElementById('panelToggleButton');
-  const addTemplateButton = document.getElementById('addTemplateButton');
-  const templateListEl = document.getElementById('templateList');
-  const themePresetSelect = document.getElementById('themePresetSelect');
-  const accentColorInput = document.getElementById('accentColorInput');
-  const bgColorInput = document.getElementById('bgColorInput');
-  const eventTextColorInput = document.getElementById('eventTextColorInput');
-  const textMainColorInput = document.getElementById('textMainColorInput');
-  const alarmToggle = document.getElementById('alarmToggle');
-  const alarmSoundSelect = document.getElementById('alarmSoundSelect');
-  const alarmVolumeInput = document.getElementById('alarmVolumeInput');
-  const alarmAudio = document.getElementById('alarmAudio');
-  const shareCodeDisplay = document.getElementById('shareCodeDisplay');
-  const addEventButton = document.getElementById('addEventButton');
-  const toggleHoursButton = document.getElementById('toggleHoursButton');
-  const currentIndicator = document.getElementById('currentIndicator');
-
-  const modalBackdrop = document.getElementById('modalBackdrop');
-  const modalCloseButton = document.getElementById('modalCloseButton');
-  const eventNameInput = document.getElementById('eventNameInput');
-  const eventStartInput = document.getElementById('eventStartInput');
-  const eventEndInput = document.getElementById('eventEndInput');
-  const eventDescriptionInput = document.getElementById('eventDescriptionInput');
-  const eventLockedInput = document.getElementById('eventLockedInput');
-  const saveEventButton = document.getElementById('saveEventButton');
-  const deleteEventButton = document.getElementById('deleteEventButton');
-
-  let modalEventId = null;
-
-  /* ============================================================
-     UTILITIES
-     ============================================================ */
-
-  function timeToMinutes(t) {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-  }
-
-  function minutesToTime(mins) {
-    mins = ((mins % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  }
-
-  function generateId() {
-    return 'e_' + Math.random().toString(36).slice(2, 9);
-  }
-
-  function getCurrentTemplate() {
-    return templates.find(t => t.id === currentTemplateId) || null;
-  }
-
-  function saveToStorage() {
-    if (!shareCode) return;
-    const key = 'timeblocker_' + shareCode;
-    const data = {
-      templates,
-      currentTemplateId,
-      alarmsEnabled,
-      alarmSoundId,
-      alarmVolume,
-      theme: {
-        currentThemeId,
-        customAccent,
-        customBg,
-        customEventText,
-        customTextMain
+    const themePresets = {
+      notion: {
+        bgMain: "#F0EFED",
+        bgPanel: "#E4E2DE",
+        bgGrid: "#FFFFFF",
+        accent: "#2E7CD1",
+        eventBg: "#2E7CD1",
+        eventText: "#FFFFFF",
+        textMain: "#191919"
       },
-      showEarlyLate
+      dark: {
+        bgMain: "#191919",
+        bgPanel: "#262626",
+        bgGrid: "#233850",
+        accent: "#2E7CD1",
+        eventBg: "#2E7CD1",
+        eventText: "#FFFFFF",
+        textMain: "#F0EFED"
+      },
+      pastel: {
+        bgMain: "#FDF6F0",
+        bgPanel: "#F4E3FF",
+        bgGrid: "#FFFFFF",
+        accent: "#FF9AA2",
+        eventBg: "#FFB7B2",
+        eventText: "#4A4A4A",
+        textMain: "#333333"
+      }
     };
-    localStorage.setItem(key, JSON.stringify(data));
-  }
 
-  function loadFromStorage() {
-    if (!shareCode) return;
-    const key = 'timeblocker_' + shareCode;
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      templates = [JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))];
-      currentTemplateId = DEFAULT_TEMPLATE.id;
-      alarmsEnabled = false;
-      alarmSoundId = 'default';
-      alarmVolume = 0.8;
-      currentThemeId = DEFAULT_THEME;
-      customAccent = null;
-      customBg = null;
-      customEventText = null;
-      customTextMain = null;
-      showEarlyLate = false;
-      return;
-    }
-    try {
-      const data = JSON.parse(raw);
-      templates = data.templates || [JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))];
-      currentTemplateId = data.currentTemplateId || templates[0].id;
-      alarmsEnabled = !!data.alarmsEnabled;
-      alarmSoundId = data.alarmSoundId || 'default';
-      alarmVolume = typeof data.alarmVolume === 'number' ? data.alarmVolume : 0.8;
-      if (data.theme) {
-        currentThemeId = data.theme.currentThemeId || DEFAULT_THEME;
-        customAccent = data.theme.customAccent || null;
-        customBg = data.theme.customBg || null;
-        customEventText = data.theme.customEventText || null;
-        customTextMain = data.theme.customTextMain || null;
-      }
-      showEarlyLate = !!data.showEarlyLate;
-    } catch (e) {
-      console.error('Failed to parse storage, resetting.', e);
-      templates = [JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))];
-      currentTemplateId = DEFAULT_TEMPLATE.id;
-      alarmsEnabled = false;
-      alarmSoundId = 'default';
-      alarmVolume = 0.8;
-      currentThemeId = DEFAULT_THEME;
-      customAccent = null;
-      customBg = null;
-      customEventText = null;
-      customTextMain = null;
-      showEarlyLate = false;
-    }
-  }
+    /************************************************************
+     * STATE
+     ************************************************************/
 
-  /* ============================================================
-     GRID & TIME COLUMN
-     ============================================================ */
-
-  function computeHourHeight() {
-    const availableHeight = gridScrollEl.clientHeight || 600;
-    HOUR_HEIGHT = availableHeight / 24;
-  }
-
-  function renderTimeColumn() {
-    timeColumnEl.innerHTML = '';
-    for (let h = 0; h < 24; h++) {
-      const label = document.createElement('div');
-      label.className = 'time-label';
-      label.dataset.hour = h;
-      label.textContent = `${String(h).padStart(2, '0')}:00`;
-      if (h >= 6 && h < 23) {
-        label.classList.add('visible');
-      } else {
-        label.classList.add(h < 6 ? 'early' : 'late');
-        if (showEarlyLate) label.classList.add('visible');
-      }
-      timeColumnEl.appendChild(label);
-    }
-    timeColumnEl.scrollTop = gridScrollEl.scrollTop;
-    timeColumnEl.addEventListener('scroll', () => {
-      gridScrollEl.scrollTop = timeColumnEl.scrollTop;
-    });
-    gridScrollEl.addEventListener('scroll', () => {
-      timeColumnEl.scrollTop = gridScrollEl.scrollTop;
-    });
-  }
-
-  function renderGridStructure() {
-    computeHourHeight();
-    gridInnerEl.style.height = `${HOUR_HEIGHT * 24}px`;
-
-    const children = Array.from(gridInnerEl.children).filter(c => c !== eventLayerEl);
-    children.forEach(c => gridInnerEl.removeChild(c));
-
-    for (let h = 0; h < 24; h++) {
-      const hourEl = document.createElement('div');
-      hourEl.className = 'grid-hour';
-      hourEl.dataset.hour = h;
-      hourEl.style.top = `${h * HOUR_HEIGHT}px`;
-      hourEl.style.height = `${HOUR_HEIGHT}px`;
-
-      if (h >= 6 && h < 23) {
-        hourEl.classList.add('visible');
-      } else {
-        hourEl.classList.add(h < 6 ? 'early' : 'late');
-        if (showEarlyLate) hourEl.classList.add('visible');
-      }
-
-      gridInnerEl.appendChild(hourEl);
-    }
-  }
-
-  /* ============================================================
-     EVENTS
-     ============================================================ */
-
-  function eventsOverlap(a, b) {
-    const aStart = timeToMinutes(a.start);
-    const aEnd = timeToMinutes(a.end);
-    const bStart = timeToMinutes(b.start);
-    const bEnd = timeToMinutes(b.end);
-    return aStart < bEnd && bStart < aEnd;
-  }
-
-  function renderEvents() {
-    const template = getCurrentTemplate();
-    if (!template) return;
-    eventLayerEl.innerHTML = '';
-
-    const events = template.events.slice().sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-
-    for (const ev of events) {
-      const block = document.createElement('div');
-      block.className = 'event-block';
-      block.dataset.eventId = ev.id;
-
-      const startMin = timeToMinutes(ev.start);
-      const endMin = timeToMinutes(ev.end);
-      const durationMin = Math.max(5, endMin - startMin);
-
-      const topPx = (startMin / 60) * HOUR_HEIGHT;
-      const heightPx = (durationMin / 60) * HOUR_HEIGHT - 4; // slight shrink for spacing
-
-      block.style.top = `${topPx}px`;
-      block.style.height = `${heightPx}px`;
-
-      const overlapping = events.some(other => other.id !== ev.id && eventsOverlap(ev, other));
-      if (overlapping) {
-        block.classList.add('event-overlay');
-      }
-
-      if (ev.locked) {
-        block.classList.add('locked');
-      }
-
-      const leftPart = document.createElement('div');
-      leftPart.style.display = 'flex';
-      leftPart.style.flexDirection = 'column';
-      leftPart.style.flex = '1';
-      leftPart.style.minWidth = 0;
-
-      const titleSpan = document.createElement('div');
-      titleSpan.className = 'event-title';
-      titleSpan.textContent = ev.name || 'Untitled';
-
-      const timeSpan = document.createElement('div');
-      timeSpan.className = 'event-time';
-      timeSpan.textContent = `${ev.start} – ${ev.end}`;
-
-      leftPart.appendChild(titleSpan);
-      leftPart.appendChild(timeSpan);
-
-      const rightPart = document.createElement('div');
-      rightPart.style.display = 'flex';
-      rightPart.style.alignItems = 'center';
-      rightPart.style.gap = '4px';
-
-      if (ev.locked) {
-        const lockIcon = document.createElement('span');
-        lockIcon.className = 'event-lock-icon';
-        lockIcon.textContent = '🔒';
-        rightPart.appendChild(lockIcon);
-      }
-
-      block.appendChild(leftPart);
-      block.appendChild(rightPart);
-
-      if (ev.description) {
-        block.title = ev.description;
-      }
-
-      block.addEventListener('mousedown', (e) => {
-        if (ev.locked) {
-          block.classList.add('event-overlay');
-          setTimeout(() => block.classList.remove('event-overlay'), 200);
-          return;
-        }
-        isDragging = true;
-        draggingEventId = ev.id;
-        const clickY = e.clientY;
-        const rect = block.getBoundingClientRect();
-        const offsetPx = clickY - rect.top;
-        const minutesPerPx = 60 / HOUR_HEIGHT;
-        dragOffsetMinutes = Math.round(offsetPx * minutesPerPx / SLOT_MINUTES) * SLOT_MINUTES;
-        block.style.cursor = 'grabbing';
-        e.preventDefault();
-      });
-
-      block.addEventListener('click', (e) => {
-        if (isDragging) return;
-        openEventModal(ev.id);
-        e.stopPropagation();
-      });
-
-      eventLayerEl.appendChild(block);
-    }
-  }
-
-  document.addEventListener('mousemove', (e) => {
-    if (!isDragging || !draggingEventId) return;
-    const template = getCurrentTemplate();
-    if (!template) return;
-    const ev = template.events.find(ev => ev.id === draggingEventId);
-    if (!ev || ev.locked) return;
-
-    const layerRect = eventLayerEl.getBoundingClientRect();
-    const y = e.clientY - layerRect.top;
-    const minutesPerPx = 60 / HOUR_HEIGHT;
-    let minutesFromTop = Math.round(y * minutesPerPx / SLOT_MINUTES) * SLOT_MINUTES - dragOffsetMinutes;
-    minutesFromTop = Math.max(0, Math.min(MINUTES_PER_DAY - 5, minutesFromTop));
-
-    const duration = timeToMinutes(ev.end) - timeToMinutes(ev.start);
-    const newStart = minutesFromTop;
-    const newEnd = newStart + duration;
-
-    ev.start = minutesToTime(newStart);
-    ev.end = minutesToTime(newEnd);
-
-    saveToStorage();
-    renderEvents();
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      draggingEventId = null;
-      dragOffsetMinutes = 0;
-      renderEvents();
-    }
-  });
-
-  /* ============================================================
-     TEMPLATES
-     ============================================================ */
-
-  function renderTemplateList() {
-    templateListEl.innerHTML = '';
-    templates.forEach(t => {
-      const item = document.createElement('div');
-      item.className = 'template-item';
-      if (t.id === currentTemplateId) item.classList.add('active');
-
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'template-name';
-      nameSpan.textContent = t.name || 'Untitled template';
-
-      const editSpan = document.createElement('span');
-      editSpan.className = 'template-edit';
-      editSpan.textContent = '✎';
-
-      item.addEventListener('click', (e) => {
-        if (e.target === editSpan) return;
-        currentTemplateId = t.id;
-        saveToStorage();
-        renderTemplateList();
-        renderEvents();
-      });
-
-      editSpan.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const newName = prompt('Template name:', t.name || '');
-        if (newName !== null && newName.trim() !== '') {
-          t.name = newName.trim();
-          saveToStorage();
-          renderTemplateList();
-        }
-      });
-
-      item.appendChild(nameSpan);
-      item.appendChild(editSpan);
-      templateListEl.appendChild(item);
-    });
-  }
-
-  function addNewTemplate() {
-    const name = prompt('New template name:', 'New Template');
-    const template = {
-      id: 'tpl_' + Math.random().toString(36).slice(2, 9),
-      name: name && name.trim() ? name.trim() : 'New Template',
-      events: []
+    let state = {
+      templates: [],
+      currentTemplateId: null,
+      theme: { ...defaultTheme },
+      showEarly: false,
+      alarmsEnabled: false,
+      alarmSound: "chime",
+      alarmVolume: 0.7
     };
-    templates.push(template);
-    currentTemplateId = template.id;
-    saveToStorage();
-    renderTemplateList();
-    renderEvents();
-  }
 
-  /* ============================================================
-     THEME
-     ============================================================ */
+    let dragState = null; // { eventId, startOffsetMinutes, originalStart, originalEnd }
+    let editingEventId = null;
 
-  function applyTheme(themeId, accentOverride, bgOverride, eventTextOverride, textMainOverride) {
-    const preset = THEME_PRESETS.find(t => t.id === themeId) || THEME_PRESETS[0];
-    const root = document.documentElement;
+    /************************************************************
+     * UTILITIES
+     ************************************************************/
 
-    const bgMain = bgOverride || preset.bgMain;
-    const accent = accentOverride || preset.accent;
-    const eventText = eventTextOverride || preset.eventText;
-    const textMain = textMainOverride || preset.textMain;
-
-    root.style.setProperty('--bg-main', bgMain);
-    root.style.setProperty('--bg-panel', preset.bgPanel);
-    root.style.setProperty('--bg-grid', preset.bgGrid);
-    root.style.setProperty('--border-subtle', preset.borderSubtle || '#E0E0E0');
-    root.style.setProperty('--text-main', textMain);
-    root.style.setProperty('--text-muted', preset.textMuted);
-    root.style.setProperty('--accent', accent);
-    root.style.setProperty('--accent-dark', preset.accentDark);
-    root.style.setProperty('--event-bg', preset.eventBg);
-    root.style.setProperty('--event-text', eventText);
-    root.style.setProperty('--event-overlay-border', preset.overlayBorder);
-
-    bgColorInput.value = bgMain;
-    accentColorInput.value = accent;
-    eventTextColorInput.value = eventText;
-    textMainColorInput.value = textMain;
-  }
-
-  function renderThemeControls() {
-    themePresetSelect.innerHTML = '';
-    THEME_PRESETS.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.name;
-      if (p.id === currentThemeId) opt.selected = true;
-      themePresetSelect.appendChild(opt);
-    });
-  }
-
-  /* ============================================================
-     ALARMS
-     ============================================================ */
-
-  function renderAlarmControls() {
-    alarmToggle.checked = alarmsEnabled;
-    alarmSoundSelect.innerHTML = '';
-    SOUND_OPTIONS.forEach(opt => {
-      const o = document.createElement('option');
-      o.value = opt.id;
-      o.textContent = opt.name;
-      if (opt.id === alarmSoundId) o.selected = true;
-      alarmSoundSelect.appendChild(o);
-    });
-    alarmVolumeInput.value = alarmVolume;
-    alarmAudio.volume = alarmVolume;
-  }
-
-  function getAlarmSoundUrl() {
-    const opt = SOUND_OPTIONS.find(o => o.id === alarmSoundId) || SOUND_OPTIONS[0];
-    return opt.url;
-  }
-
-  function playAlarm(message) {
-    if (!alarmsEnabled) return;
-    alarmAudio.src = getAlarmSoundUrl();
-    alarmAudio.currentTime = 0;
-    alarmAudio.volume = alarmVolume;
-    alarmAudio.play().catch(() => {});
-    if (message) {
-      alert(message);
+    function getShareKey() {
+      // Per-URL share code style
+      return window.location.pathname + window.location.search;
     }
-  }
 
-  function checkAlarms() {
-    if (!alarmsEnabled) return;
-    const now = new Date();
-    const minutesNow = now.getHours() * 60 + now.getMinutes();
-
-    if (minutesNow === lastAlarmCheckMinute) return;
-    lastAlarmCheckMinute = minutesNow;
-
-    const template = getCurrentTemplate();
-    if (!template) return;
-
-    const sorted = template.events.slice().sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-
-    sorted.forEach((ev, idx) => {
-      const startMin = timeToMinutes(ev.start);
-      const endMin = timeToMinutes(ev.end);
-
-      if (minutesNow === startMin) {
-        playAlarm(`Start: ${ev.name}`);
+    function loadState() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        state.templates = JSON.parse(JSON.stringify(defaultTemplates));
+        state.currentTemplateId = state.templates[0].id;
+        state.theme = { ...defaultTheme };
+        return;
       }
-      if (minutesNow === endMin) {
-        const next = sorted.find(e => timeToMinutes(e.start) === endMin);
-        if (next) {
-          playAlarm(`Event "${ev.name}" finished, start "${next.name}".`);
+      try {
+        const all = JSON.parse(raw);
+        const key = getShareKey();
+        if (!all[key]) {
+          state.templates = JSON.parse(JSON.stringify(defaultTemplates));
+          state.currentTemplateId = state.templates[0].id;
+          state.theme = { ...defaultTheme };
         } else {
-          playAlarm(`Event "${ev.name}" finished.`);
+          const saved = all[key];
+          state.templates = saved.templates || JSON.parse(JSON.stringify(defaultTemplates));
+          state.currentTemplateId = saved.currentTemplateId || (state.templates[0] && state.templates[0].id);
+          state.theme = saved.theme || { ...defaultTheme };
+          state.showEarly = !!saved.showEarly;
+          state.alarmsEnabled = !!saved.alarmsEnabled;
+          state.alarmSound = saved.alarmSound || "chime";
+          state.alarmVolume = typeof saved.alarmVolume === "number" ? saved.alarmVolume : 0.7;
+        }
+      } catch (e) {
+        console.error("Failed to parse state", e);
+        state.templates = JSON.parse(JSON.stringify(defaultTemplates));
+        state.currentTemplateId = state.templates[0].id;
+        state.theme = { ...defaultTheme };
+      }
+    }
+
+    function saveState() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      let all = {};
+      if (raw) {
+        try {
+          all = JSON.parse(raw);
+        } catch {
+          all = {};
         }
       }
-    });
-  }
-
-  /* ============================================================
-     CURRENT TIME / EVENT INDICATOR
-     ============================================================ */
-
-  function updateCurrentIndicator() {
-    const now = new Date();
-    const minutesNow = now.getHours() * 60 + now.getMinutes();
-    const timeStr = minutesToTime(minutesNow);
-
-    const template = getCurrentTemplate();
-    if (!template) {
-      currentIndicator.textContent = `Now: ${timeStr}`;
-      return;
+      const key = getShareKey();
+      all[key] = {
+        templates: state.templates,
+        currentTemplateId: state.currentTemplateId,
+        theme: state.theme,
+        showEarly: state.showEarly,
+        alarmsEnabled: state.alarmsEnabled,
+        alarmSound: state.alarmSound,
+        alarmVolume: state.alarmVolume
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
     }
 
-    const ev = template.events.find(e => {
-      const s = timeToMinutes(e.start);
-      const en = timeToMinutes(e.end);
-      return minutesNow >= s && minutesNow < en;
-    });
-
-    if (ev) {
-      currentIndicator.textContent = `Now: ${timeStr} · ${ev.name}`;
-    } else {
-      currentIndicator.textContent = `Now: ${timeStr} · (no event)`;
+    function minutesToTimeStr(m) {
+      const total = ((m % (24 * 60)) + (24 * 60)) % (24 * 60);
+      const h = Math.floor(total / 60);
+      const mm = total % 60;
+      return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
     }
-  }
 
-  /* ============================================================
-     EVENT MODAL
-     ============================================================ */
+    function clampTo5Minutes(m) {
+      return Math.round(m / 5) * 5;
+    }
 
-  function openEventModal(eventId) {
-    const template = getCurrentTemplate();
-    if (!template) return;
-    const ev = template.events.find(e => e.id === eventId);
-    if (!ev) return;
-    modalEventId = eventId;
-    eventNameInput.value = ev.name || '';
-    eventStartInput.value = ev.start;
-    eventEndInput.value = ev.end;
-    eventDescriptionInput.value = ev.description || '';
-    eventLockedInput.checked = !!ev.locked;
-    modalBackdrop.classList.add('open');
-  }
+    function getCurrentTemplate() {
+      return state.templates.find(t => t.id === state.currentTemplateId) || state.templates[0];
+    }
 
-  function closeEventModal() {
-    modalBackdrop.classList.remove('open');
-    modalEventId = null;
-  }
+    function generateId(prefix) {
+      return prefix + "_" + Math.random().toString(36).slice(2, 9);
+    }
 
-  function saveEventFromModal() {
-    const template = getCurrentTemplate();
-    if (!template || !modalEventId) return;
-    const ev = template.events.find(e => e.id === modalEventId);
-    if (!ev) return;
+    /************************************************************
+     * THEME APPLICATION
+     ************************************************************/
 
-    const name = eventNameInput.value.trim() || 'Untitled';
-    let start = eventStartInput.value || '00:00';
-    let end = eventEndInput.value || '00:05';
+    function applyTheme() {
+      const root = document.documentElement;
+      root.style.setProperty("--bg-main", state.theme.bgMain);
+      root.style.setProperty("--bg-panel", state.theme.bgPanel);
+      root.style.setProperty("--bg-grid", state.theme.bgGrid);
+      root.style.setProperty("--accent", state.theme.accent);
+      root.style.setProperty("--accent-soft", state.theme.accent);
+      root.style.setProperty("--event-bg", state.theme.eventBg);
+      root.style.setProperty("--event-text", state.theme.eventText);
+      root.style.setProperty("--text-main", state.theme.textMain);
+      root.style.setProperty("--text-muted", state.theme.textMain + "CC");
 
-    const startMin = Math.round(timeToMinutes(start) / SLOT_MINUTES) * SLOT_MINUTES;
-    let endMin = Math.round(timeToMinutes(end) / SLOT_MINUTES) * SLOT_MINUTES;
-    if (endMin <= startMin) endMin = startMin + SLOT_MINUTES;
+      // Update color inputs
+      document.getElementById("bgColorInput").value = state.theme.bgMain;
+      document.getElementById("panelColorInput").value = state.theme.bgPanel;
+      document.getElementById("accentColorInput").value = state.theme.accent;
+      document.getElementById("eventBgColorInput").value = state.theme.eventBg;
+      document.getElementById("eventTextColorInput").value = state.theme.eventText;
+      document.getElementById("textColorInput").value = state.theme.textMain;
+    }
 
-    ev.name = name;
-    ev.start = minutesToTime(startMin);
-    ev.end = minutesToTime(endMin);
-    ev.description = eventDescriptionInput.value.trim();
-    ev.locked = eventLockedInput.checked;
+    /************************************************************
+     * GRID RENDERING (AUTO-FILL HEIGHT)
+     ************************************************************/
 
-    saveToStorage();
-    renderEvents();
-    closeEventModal();
-  }
+    const hourLabelsEl = document.getElementById("hourLabels");
+    const gridHoursEl = document.getElementById("gridHours");
+    const eventLayerEl = document.getElementById("eventLayer");
+    const gridWrapperEl = document.getElementById("gridWrapper");
 
-  function deleteEventFromModal() {
-    const template = getCurrentTemplate();
-    if (!template || !modalEventId) return;
-    const idx = template.events.findIndex(e => e.id === modalEventId);
-    if (idx >= 0) {
-      template.events.splice(idx, 1);
-      saveToStorage();
+    const HOURS_IN_DAY = 24;
+    const MINUTES_IN_DAY = 24 * 60;
+
+    function renderHours() {
+      hourLabelsEl.innerHTML = "";
+      gridHoursEl.innerHTML = "";
+
+      for (let h = 0; h < HOURS_IN_DAY; h++) {
+        const label = document.createElement("div");
+        label.className = "hour-label";
+        if (!state.showEarly && (h < 6 || h >= 23)) {
+          label.classList.add("hidden-hour");
+        }
+        label.textContent = `${String(h).padStart(2, "0")}:00`;
+        hourLabelsEl.appendChild(label);
+
+        const hourDiv = document.createElement("div");
+        hourDiv.className = "grid-hour";
+        if (!state.showEarly && (h < 6 || h >= 23)) {
+          hourDiv.style.display = "none";
+        }
+        gridHoursEl.appendChild(hourDiv);
+      }
+
+      // Scroll to 06:00–23:00 range by default
+      requestAnimationFrame(() => {
+        const totalHeight = gridHoursEl.getBoundingClientRect().height;
+        const visibleHours = state.showEarly ? 24 : 17; // 06–23 inclusive = 17 hours
+        const hourHeight = totalHeight / HOURS_IN_DAY;
+        const scrollStartHour = state.showEarly ? 0 : 6;
+        gridWrapperEl.scrollTop = scrollStartHour * hourHeight;
+      });
+    }
+
+    function minutesToTopOffset(m) {
+      const totalHeight = gridHoursEl.getBoundingClientRect().height || 1;
+      return (m / MINUTES_IN_DAY) * totalHeight;
+    }
+
+    function minutesToHeight(start, end) {
+      const totalHeight = gridHoursEl.getBoundingClientRect().height || 1;
+      const duration = end - start;
+      return (duration / MINUTES_IN_DAY) * totalHeight;
+    }
+
+    /************************************************************
+     * EVENTS RENDERING
+     ************************************************************/
+
+    function eventsOverlap(e1, e2) {
+      return e1.startMinutes < e2.endMinutes && e2.startMinutes < e1.endMinutes;
+    }
+
+    function renderEvents() {
+      eventLayerEl.innerHTML = "";
+      const template = getCurrentTemplate();
+      if (!template) return;
+
+      const events = [...template.events].sort((a, b) => a.startMinutes - b.startMinutes);
+
+      for (const ev of events) {
+        const block = document.createElement("div");
+        block.className = "event-block";
+        if (ev.locked) block.classList.add("locked");
+
+        const top = minutesToTopOffset(ev.startMinutes);
+        const height = Math.max(18, minutesToHeight(ev.startMinutes, ev.endMinutes));
+
+        block.style.top = top + "px";
+        block.style.height = height + "px";
+
+        // dashed outline if overlapping
+        const overlapping = events.some(other => other.id !== ev.id && eventsOverlap(ev, other));
+        if (overlapping) {
+          block.classList.add("event-overlaying");
+        }
+
+        block.dataset.id = ev.id;
+        block.dataset.description = ev.description || "";
+
+        const innerRow = document.createElement("div");
+        innerRow.className = "event-inner-row";
+
+        const timeEl = document.createElement("div");
+        timeEl.className = "event-time";
+        timeEl.textContent = `${minutesToTimeStr(ev.startMinutes)}–${minutesToTimeStr(ev.endMinutes)}`;
+
+        const titleEl = document.createElement("div");
+        titleEl.className = "event-title";
+        titleEl.textContent = ev.title || "(Untitled)";
+
+        innerRow.appendChild(timeEl);
+        innerRow.appendChild(titleEl);
+        block.appendChild(innerRow);
+
+        const lockIcon = document.createElement("div");
+        lockIcon.className = "event-lock-icon";
+        lockIcon.textContent = ev.locked ? "🔒" : "";
+        block.appendChild(lockIcon);
+
+        // Drag & click handlers
+        block.addEventListener("mousedown", (e) => {
+          if (ev.locked) {
+            // locked: open modal on click
+            if (e.button === 0) {
+              openEventModal(ev.id);
+            }
+            return;
+          }
+          if (e.button !== 0) return;
+          e.preventDefault();
+          startDrag(ev.id, e.clientY);
+        });
+
+        block.addEventListener("dblclick", () => {
+          openEventModal(ev.id);
+        });
+
+        eventLayerEl.appendChild(block);
+      }
+    }
+
+    /************************************************************
+     * DRAG & DROP
+     ************************************************************/
+
+    function startDrag(eventId, startY) {
+      const template = getCurrentTemplate();
+      const ev = template.events.find(e => e.id === eventId);
+      if (!ev) return;
+
+      const totalHeight = gridHoursEl.getBoundingClientRect().height || 1;
+      const pxPerMinute = totalHeight / MINUTES_IN_DAY;
+
+      dragState = {
+        eventId,
+        startY,
+        originalStart: ev.startMinutes,
+        originalEnd: ev.endMinutes,
+        pxPerMinute
+      };
+
+      document.addEventListener("mousemove", onDragMove);
+      document.addEventListener("mouseup", onDragEnd);
+    }
+
+    function onDragMove(e) {
+      if (!dragState) return;
+      e.preventDefault();
+
+      const dy = e.clientY - dragState.startY;
+      const deltaMinutes = dy / dragState.pxPerMinute;
+      const template = getCurrentTemplate();
+      const ev = template.events.find(ev => ev.id === dragState.eventId);
+      if (!ev) return;
+
+      let newStart = clampTo5Minutes(dragState.originalStart + deltaMinutes);
+      let duration = dragState.originalEnd - dragState.originalStart;
+      let newEnd = newStart + duration;
+
+      // keep within 0–24h*2 (to allow crossing midnight if you want)
+      const maxMinutes = 24 * 60 * 2;
+      if (newStart < 0) {
+        newStart = 0;
+        newEnd = duration;
+      } else if (newEnd > maxMinutes) {
+        newEnd = maxMinutes;
+        newStart = maxMinutes - duration;
+      }
+
+      ev.startMinutes = newStart;
+      ev.endMinutes = newEnd;
+
       renderEvents();
     }
-    closeEventModal();
-  }
 
-  /* ============================================================
-     ADD EVENT
-     ============================================================ */
+    function onDragEnd() {
+      if (!dragState) return;
+      dragState = null;
+      document.removeEventListener("mousemove", onDragMove);
+      document.removeEventListener("mouseup", onDragEnd);
+      saveState();
+    }
 
-  function addNewEvent() {
-    const template = getCurrentTemplate();
-    if (!template) return;
-    const now = new Date();
-    const minutesNow = now.getHours() * 60 + now.getMinutes();
-    const snapped = Math.round(minutesNow / SLOT_MINUTES) * SLOT_MINUTES;
-    const start = minutesToTime(snapped);
-    const end = minutesToTime(snapped + 30);
+    /************************************************************
+     * TEMPLATES UI
+     ************************************************************/
 
-    const ev = {
-      id: generateId(),
-      name: 'New Event',
-      start,
-      end,
-      description: '',
-      locked: false
-    };
-    template.events.push(ev);
-    saveToStorage();
-    renderEvents();
-    openEventModal(ev.id);
-  }
+    const templateListEl = document.getElementById("templateList");
+    const templateTitleEl = document.getElementById("templateTitle");
 
-  /* ============================================================
-     EARLY/LATE HOURS TOGGLE
-     ============================================================ */
+    function renderTemplatesList() {
+      templateListEl.innerHTML = "";
+      for (const t of state.templates) {
+        const item = document.createElement("div");
+        item.className = "template-item";
+        if (t.id === state.currentTemplateId) item.classList.add("active");
 
-  function applyEarlyLateVisibility() {
-    const hourEls = gridInnerEl.querySelectorAll('.grid-hour');
-    hourEls.forEach(el => {
-      const h = Number(el.dataset.hour);
-      el.classList.remove('visible');
-      if (h >= 6 && h < 23) {
-        el.classList.add('visible');
-      } else {
-        if (showEarlyLate) el.classList.add('visible');
+        const nameEl = document.createElement("div");
+        nameEl.className = "template-name";
+        nameEl.textContent = t.name;
+
+        const actions = document.createElement("div");
+        actions.className = "template-actions";
+
+        const delBtn = document.createElement("button");
+        delBtn.className = "template-delete";
+        delBtn.textContent = "🗑";
+        delBtn.title = "Delete template";
+
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteTemplate(t.id);
+        });
+
+        actions.appendChild(delBtn);
+
+        item.appendChild(nameEl);
+        item.appendChild(actions);
+
+        item.addEventListener("click", () => {
+          state.currentTemplateId = t.id;
+          saveState();
+          syncTemplateTitle();
+          renderTemplatesList();
+          renderEvents();
+        });
+
+        templateListEl.appendChild(item);
       }
-    });
+    }
 
-    const labelEls = timeColumnEl.querySelectorAll('.time-label');
-    labelEls.forEach(el => {
-      const h = Number(el.dataset.hour);
-      el.classList.remove('visible');
-      if (h >= 6 && h < 23) {
-        el.classList.add('visible');
-      } else {
-        if (showEarlyLate) el.classList.add('visible');
+    function deleteTemplate(id) {
+      if (state.templates.length <= 1) {
+        alert("You must have at least one template.");
+        return;
       }
-    });
-  }
+      const t = state.templates.find(t => t.id === id);
+      if (!t) return;
+      if (!confirm(`Delete template "${t.name}"?`)) return;
 
-  /* ============================================================
-     INIT
-     ============================================================ */
+      state.templates = state.templates.filter(t => t.id !== id);
+      if (state.currentTemplateId === id) {
+        state.currentTemplateId = state.templates[0].id;
+      }
+      saveState();
+      syncTemplateTitle();
+      renderTemplatesList();
+      renderEvents();
+    }
 
-  function initShareCode() {
-    const params = new URLSearchParams(window.location.search);
-    shareCode = params.get('schedule') || 'default';
-    shareCodeDisplay.textContent = shareCode;
-  }
+    function addTemplate() {
+      const id = generateId("tpl");
+      const newTemplate = {
+        id,
+        name: "New Template",
+        events: []
+      };
+      state.templates.push(newTemplate);
+      state.currentTemplateId = id;
+      saveState();
+      syncTemplateTitle();
+      renderTemplatesList();
+      renderEvents();
+    }
 
-  function init() {
-    initShareCode();
-    loadFromStorage();
+    function syncTemplateTitle() {
+      const t = getCurrentTemplate();
+      if (!t) return;
+      templateTitleEl.textContent = t.name;
+    }
 
-    computeHourHeight();
-    renderTimeColumn();
-    renderGridStructure();
-    renderEvents();
-
-    renderTemplateList();
-    renderThemeControls();
-    renderAlarmControls();
-
-    applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
-    applyEarlyLateVisibility();
-
-    const targetMin = 6 * 60;
-    const targetPx = (targetMin / 60) * HOUR_HEIGHT;
-    gridScrollEl.scrollTop = Math.max(0, targetPx - 100);
-    timeColumnEl.scrollTop = gridScrollEl.scrollTop;
-
-    panelToggleButton.addEventListener('click', () => {
-      sidePanelEl.classList.toggle('open');
-    });
-
-    addTemplateButton.addEventListener('click', () => {
-      addNewTemplate();
-    });
-
-    themePresetSelect.addEventListener('change', () => {
-      currentThemeId = themePresetSelect.value;
-      customAccent = null;
-      customBg = null;
-      customEventText = null;
-      customTextMain = null;
-      applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
-      saveToStorage();
+    templateTitleEl.addEventListener("blur", () => {
+      const t = getCurrentTemplate();
+      if (!t) return;
+      const newName = templateTitleEl.textContent.trim() || "Untitled Template";
+      t.name = newName;
+      saveState();
+      renderTemplatesList();
     });
 
-    bgColorInput.addEventListener('input', () => {
-      customBg = bgColorInput.value;
-      applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
-      saveToStorage();
-    });
+    /************************************************************
+     * EVENT MODAL
+     ************************************************************/
 
-    accentColorInput.addEventListener('input', () => {
-      customAccent = accentColorInput.value;
-      applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
-      saveToStorage();
-    });
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const eventTitleInput = document.getElementById("eventTitleInput");
+    const eventStartInput = document.getElementById("eventStartInput");
+    const eventEndInput = document.getElementById("eventEndInput");
+    const eventDescriptionInput = document.getElementById("eventDescriptionInput");
+    const eventLockedInput = document.getElementById("eventLockedInput");
+    const deleteEventBtn = document.getElementById("deleteEventBtn");
+    const cancelEventBtn = document.getElementById("cancelEventBtn");
+    const saveEventBtn = document.getElementById("saveEventBtn");
 
-    eventTextColorInput.addEventListener('input', () => {
-      customEventText = eventTextColorInput.value;
-      applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
-      saveToStorage();
-    });
+    function openEventModal(eventId = null) {
+      const template = getCurrentTemplate();
+      editingEventId = eventId;
 
-    textMainColorInput.addEventListener('input', () => {
-      customTextMain = textMainColorInput.value;
-      applyTheme(currentThemeId, customAccent, customBg, customEventText, customTextMain);
-      saveToStorage();
-    });
+      if (eventId) {
+        const ev = template.events.find(e => e.id === eventId);
+        if (!ev) return;
+        eventTitleInput.value = ev.title;
+        eventStartInput.value = minutesToTimeStr(ev.startMinutes);
+        eventEndInput.value = minutesToTimeStr(ev.endMinutes);
+        eventDescriptionInput.value = ev.description || "";
+        eventLockedInput.checked = !!ev.locked;
+        deleteEventBtn.style.display = "inline-flex";
+      } else {
+        // new event
+        eventTitleInput.value = "";
+        eventStartInput.value = "06:00";
+        eventEndInput.value = "07:00";
+        eventDescriptionInput.value = "";
+        eventLockedInput.checked = false;
+        deleteEventBtn.style.display = "none";
+      }
 
-    alarmToggle.addEventListener('change', () => {
-      alarmsEnabled = alarmToggle.checked;
-      saveToStorage();
-    });
+      modalBackdrop.classList.add("visible");
+    }
 
-    alarmSoundSelect.addEventListener('change', () => {
-      alarmSoundId = alarmSoundSelect.value;
-      saveToStorage();
-    });
+    function closeEventModal() {
+      modalBackdrop.classList.remove("visible");
+      editingEventId = null;
+    }
 
-    alarmVolumeInput.addEventListener('input', () => {
-      alarmVolume = parseFloat(alarmVolumeInput.value);
-      alarmAudio.volume = alarmVolume;
-      saveToStorage();
-    });
-
-    addEventButton.addEventListener('click', () => {
-      addNewEvent();
-    });
-
-    toggleHoursButton.addEventListener('click', () => {
-      showEarlyLate = !showEarlyLate;
-      applyEarlyLateVisibility();
-      saveToStorage();
-    });
-
-    modalCloseButton.addEventListener('click', closeEventModal);
-    modalBackdrop.addEventListener('click', (e) => {
+    cancelEventBtn.addEventListener("click", closeEventModal);
+    modalBackdrop.addEventListener("click", (e) => {
       if (e.target === modalBackdrop) closeEventModal();
     });
-    saveEventButton.addEventListener('click', saveEventFromModal);
-    deleteEventButton.addEventListener('click', deleteEventFromModal);
 
-    setInterval(checkAlarms, 5000);
-    updateCurrentIndicator();
-    setInterval(updateCurrentIndicator, 30000);
-  }
+    deleteEventBtn.addEventListener("click", () => {
+      if (!editingEventId) return;
+      const template = getCurrentTemplate();
+      template.events = template.events.filter(e => e.id !== editingEventId);
+      saveState();
+      renderEvents();
+      closeEventModal();
+    });
 
-  document.addEventListener('DOMContentLoaded', init);
-</script>
+    saveEventBtn.addEventListener("click", () => {
+      const template = getCurrentTemplate();
+      if (!template) return;
+
+      const title = eventTitleInput.value.trim() || "Untitled";
+      const startStr = eventStartInput.value || "06:00";
+      const endStr = eventEndInput.value || "07:00";
+
+      const [sh, sm] = startStr.split(":").map(Number);
+      const [eh, em] = endStr.split(":").map(Number);
+
+      let startMinutes = clampTo5Minutes(sh * 60 + sm);
+      let endMinutes = clampTo5Minutes(eh * 60 + em);
+
+      if (endMinutes <= startMinutes) {
+        endMinutes = startMinutes + 5;
+      }
+
+      const description = eventDescriptionInput.value.trim();
+      const locked = eventLockedInput.checked;
+
+      if (editingEventId) {
+        const ev = template.events.find(e => e.id === editingEventId);
+        if (!ev) return;
+        ev.title = title;
+        ev.startMinutes = startMinutes;
+        ev.endMinutes = endMinutes;
+        ev.description = description;
+        ev.locked = locked;
+      } else {
+        template.events.push({
+          id: generateId("ev"),
+          title,
+          startMinutes,
+          endMinutes,
+          description,
+          locked
+        });
+      }
+
+      saveState();
+      renderEvents();
+      closeEventModal();
+    });
+
+    /************************************************************
+     * ADD EVENT BUTTON
+     ************************************************************/
+
+    document.getElementById("addEventBtn").addEventListener("click", () => {
+      openEventModal(null);
+    });
+
+    /************************************************************
+     * EARLY HOURS TOGGLE
+     ************************************************************/
+
+    const toggleEarlyBtn = document.getElementById("toggleEarlyBtn");
+    toggleEarlyBtn.addEventListener("click", () => {
+      state.showEarly = !state.showEarly;
+      toggleEarlyBtn.classList.toggle("active", state.showEarly);
+      toggleEarlyBtn.textContent = state.showEarly
+        ? "Hide 00:00–06:00 & 23:00–24:00"
+        : "Show 00:00–06:00 & 23:00–24:00";
+      saveState();
+      renderHours();
+      renderEvents();
+    });
+
+    /************************************************************
+     * RIGHT PANEL TOGGLE
+     ************************************************************/
+
+    const rightPanelEl = document.getElementById("rightPanel");
+    const menuToggleBtn = document.getElementById("menuToggleBtn");
+
+    function updateRightPanelVisibility() {
+      const wide = window.innerWidth >= 1000;
+      if (wide) {
+        rightPanelEl.classList.remove("hidden");
+      } else {
+        rightPanelEl.classList.add("hidden");
+      }
+    }
+
+    menuToggleBtn.addEventListener("click", () => {
+      const wide = window.innerWidth >= 1000;
+      if (wide) return; // always visible on wide screens
+      rightPanelEl.classList.toggle("hidden");
+    });
+
+    window.addEventListener("resize", updateRightPanelVisibility);
+
+    /************************************************************
+     * THEME CONTROLS
+     ************************************************************/
+
+    document.getElementById("bgColorInput").addEventListener("input", (e) => {
+      state.theme.bgMain = e.target.value;
+      applyTheme();
+      saveState();
+    });
+
+    document.getElementById("panelColorInput").addEventListener("input", (e) => {
+      state.theme.bgPanel = e.target.value;
+      applyTheme();
+      saveState();
+    });
+
+    document.getElementById("accentColorInput").addEventListener("input", (e) => {
+      state.theme.accent = e.target.value;
+      applyTheme();
+      saveState();
+    });
+
+    document.getElementById("eventBgColorInput").addEventListener("input", (e) => {
+      state.theme.eventBg = e.target.value;
+      applyTheme();
+      renderEvents();
+      saveState();
+    });
+
+    document.getElementById("eventTextColorInput").addEventListener("input", (e) => {
+      state.theme.eventText = e.target.value;
+      applyTheme();
+      renderEvents();
+      saveState();
+    });
+
+    document.getElementById("textColorInput").addEventListener("input", (e) => {
+      state.theme.textMain = e.target.value;
+      applyTheme();
+      saveState();
+    });
+
+    document.querySelectorAll(".preset-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const preset = themePresets[btn.dataset.preset];
+        if (!preset) return;
+        state.theme = { ...preset };
+        applyTheme();
+        renderEvents();
+        saveState();
+      });
+    });
+
+    /************************************************************
+     * ALARMS
+     ************************************************************/
+
+    const alarmToggleEl = document.getElementById("alarmToggle");
+    const alarmSoundSelect = document.getElementById("alarmSoundSelect");
+    const alarmVolumeEl = document.getElementById("alarmVolume");
+    const alarmStatusEl = document.getElementById("alarmStatus");
+
+    let lastAlarmCheckMinute = null;
+
+    const alarmAudio = new Audio();
+    const alarmSounds = {
+      chime: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=", // tiny silent placeholder
+      bell: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=",
+      ping: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
+    };
+    // NOTE: Replace the above data URLs with real sounds if you want.
+
+    function playAlarm(message) {
+      if (!state.alarmsEnabled) return;
+      alarmAudio.src = alarmSounds[state.alarmSound] || alarmSounds.chime;
+      alarmAudio.volume = state.alarmVolume;
+      alarmAudio.play().catch(() => {});
+      alarmStatusEl.textContent = message;
+      setTimeout(() => {
+        if (alarmStatusEl.textContent === message) {
+          alarmStatusEl.textContent = "";
+        }
+      }, 10000);
+    }
+
+    alarmToggleEl.addEventListener("change", () => {
+      state.alarmsEnabled = alarmToggleEl.checked;
+      saveState();
+    });
+
+    alarmSoundSelect.addEventListener("change", () => {
+      state.alarmSound = alarmSoundSelect.value;
+      saveState();
+    });
+
+    alarmVolumeEl.addEventListener("input", () => {
+      state.alarmVolume = parseFloat(alarmVolumeEl.value);
+      saveState();
+    });
+
+    function checkAlarms() {
+      const now = new Date();
+      const minutesToday = now.getHours() * 60 + now.getMinutes();
+      if (lastAlarmCheckMinute === minutesToday) return;
+      lastAlarmCheckMinute = minutesToday;
+
+      const template = getCurrentTemplate();
+      if (!template) return;
+
+      const events = [...template.events].sort((a, b) => a.startMinutes - b.startMinutes);
+
+      for (let i = 0; i < events.length; i++) {
+        const ev = events[i];
+        const next = events[i + 1];
+
+        // Start alarm
+        if (clampTo5Minutes(ev.startMinutes) === clampTo5Minutes(minutesToday)) {
+          playAlarm(`Start: ${ev.title}`);
+        }
+
+        // End alarm
+        if (clampTo5Minutes(ev.endMinutes) === clampTo5Minutes(minutesToday)) {
+          if (next) {
+            playAlarm(`"${ev.title}" finished, start "${next.title}"`);
+          } else {
+            playAlarm(`"${ev.title}" finished`);
+          }
+        }
+      }
+    }
+
+    setInterval(checkAlarms, 15000);
+
+    /************************************************************
+     * CURRENT TIME / CURRENT EVENT INDICATOR
+     ************************************************************/
+
+    const currentTimeLabel = document.getElementById("currentTimeLabel");
+    const currentEventLabel = document.getElementById("currentEventLabel");
+
+    function updateCurrentTimeAndEvent() {
+      const now = new Date();
+      const minutesToday = now.getHours() * 60 + now.getMinutes();
+      currentTimeLabel.textContent = minutesToTimeStr(minutesToday);
+
+      const template = getCurrentTemplate();
+      if (!template) {
+        currentEventLabel.textContent = "No current event";
+        return;
+      }
+
+      const ev = template.events.find(e => e.startMinutes <= minutesToday && e.endMinutes > minutesToday);
+      if (ev) {
+        currentEventLabel.textContent = ev.title;
+      } else {
+        currentEventLabel.textContent = "No current event";
+      }
+    }
+
+    setInterval(updateCurrentTimeAndEvent, 30000);
+
+    /************************************************************
+     * INITIALIZATION
+     ************************************************************/
+
+    function init() {
+      loadState();
+      applyTheme();
+      renderHours();
+      renderTemplatesList();
+      syncTemplateTitle();
+      renderEvents();
+      updateRightPanelVisibility();
+
+      // Restore toggles
+      toggleEarlyBtn.classList.toggle("active", state.showEarly);
+      toggleEarlyBtn.textContent = state.showEarly
+        ? "Hide 00:00–06:00 & 23:00–24:00"
+        : "Show 00:00–06:00 & 23:00–24:00";
+
+      alarmToggleEl.checked = state.alarmsEnabled;
+      alarmSoundSelect.value = state.alarmSound;
+      alarmVolumeEl.value = state.alarmVolume;
+
+      updateCurrentTimeAndEvent();
+      setTimeout(updateCurrentTimeAndEvent, 1000);
+
+      document.getElementById("addTemplateBtn").addEventListener("click", addTemplate);
+    }
+
+    init();
+  </script>
 </body>
 </html>
