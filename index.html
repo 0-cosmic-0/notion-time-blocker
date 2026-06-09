@@ -51,7 +51,7 @@
 
     .app-root {
       width: 100%;
-      max-width: 1200px;
+      max-width: 100%;
       height: 100vh;
       padding: 12px;
       display: flex;
@@ -263,14 +263,14 @@
       position: relative;
       width: 100%;
       height: 100%;
-      pointer-events: auto; /* IMPORTANT: allows drag & click */
+      pointer-events: auto;
     }
 
     .event-block {
       position: absolute;
       left: 4px;
       right: 4px;
-      border-radius: 4px; /* your requested radius */
+      border-radius: 4px;
       background: var(--event-bg);
       color: var(--event-text);
       padding: 2px 6px;
@@ -280,7 +280,7 @@
       justify-content: flex-start;
       cursor: grab;
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-      margin: 1px 0; /* small gap between events */
+      margin: 1px 0;
     }
 
     .event-block.locked {
@@ -296,19 +296,22 @@
       width: 100%;
     }
 
-    .event-time {
-      font-weight: 500;
-      font-size: 10px;
-      text-align: left;
-    }
-
     .event-title {
       font-weight: 600;
       font-size: 10px;
-      text-align: right;
+      text-align: left;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      order: 1;
+    }
+
+    .event-time {
+      font-weight: 500;
+      font-size: 10px;
+      text-align: right;
+      order: 2;
+      white-space: nowrap;
     }
 
     .event-lock-icon {
@@ -328,7 +331,6 @@
       filter: brightness(1.05);
     }
 
-    /* Tooltip for description on hover */
     .event-block[data-description]:hover::after {
       content: attr(data-description);
       position: absolute;
@@ -345,7 +347,7 @@
       z-index: 20;
     }
 
-    /* RIGHT PANEL (templates + theme + alarms) */
+    /* RIGHT PANEL (pushes grid inward when open) */
 
     .right-panel {
       width: var(--right-panel-width);
@@ -358,11 +360,14 @@
       padding: 8px;
       gap: 8px;
       min-width: 0;
-      transition: transform 0.2s ease, opacity 0.2s ease;
+      transition: width 0.2s ease, margin 0.2s ease, opacity 0.2s ease, padding 0.2s ease, border 0.2s ease;
     }
 
-    .right-panel.hidden {
-      transform: translateX(100%);
+    .right-panel.collapsed {
+      width: 0;
+      padding: 0;
+      margin: 0;
+      border: none;
       opacity: 0;
       pointer-events: none;
     }
@@ -479,21 +484,18 @@
 
     .preset-row {
       display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
+      align-items: center;
+      gap: 6px;
     }
 
-    .preset-btn {
-      border-radius: 999px;
+    .preset-select {
+      width: 100%;
+      font-size: 11px;
+      padding: 3px 6px;
+      border-radius: 4px;
       border: 1px solid var(--border-subtle);
-      padding: 2px 6px;
-      font-size: 10px;
-      cursor: pointer;
       background: #fff;
-    }
-
-    .preset-btn:hover {
-      border-color: var(--accent);
+      font-family: inherit;
     }
 
     .alarm-toggle {
@@ -635,15 +637,15 @@
       font-size: 11px;
     }
 
-    /* SMALL SCREENS: hide right panel by default, use menu button */
-
     @media (max-width: 900px) {
+      .main-layout {
+        flex-direction: column;
+      }
       .right-panel {
-        position: absolute;
-        right: 12px;
-        top: calc(12px + var(--top-bar-height) + 8px);
-        height: calc(100vh - var(--top-bar-height) - 32px);
-        z-index: 50;
+        width: 100%;
+      }
+      .right-panel.collapsed {
+        width: 0;
       }
     }
   </style>
@@ -653,7 +655,6 @@
     <!-- TOP BAR -->
     <div class="top-bar">
       <div class="top-left">
-        <!-- Template title (editable) -->
         <div id="templateTitle" class="template-title" contenteditable="true"></div>
       </div>
       <div class="top-right">
@@ -686,7 +687,7 @@
       </div>
 
       <!-- RIGHT PANEL -->
-      <div class="right-panel hidden" id="rightPanel">
+      <div class="right-panel collapsed" id="rightPanel">
         <!-- Templates -->
         <div>
           <div class="right-section-title">Templates</div>
@@ -722,9 +723,18 @@
             <input type="color" id="textColorInput" class="color-input" />
           </div>
           <div class="preset-row">
-            <button class="preset-btn" data-preset="notion">Notion Summer</button>
-            <button class="preset-btn" data-preset="dark">Dark Focus</button>
-            <button class="preset-btn" data-preset="pastel">Soft Pastel</button>
+            <label for="presetSelect">Presets</label>
+            <select id="presetSelect" class="preset-select">
+              <option value="">Select preset…</option>
+              <option value="notion">Notion Summer</option>
+              <option value="dark">Dark Focus</option>
+              <option value="pastel">Soft Pastel</option>
+              <option value="midnight">Midnight Blue</option>
+              <option value="forest">Forest Calm</option>
+              <option value="rosewater">Rosewater</option>
+              <option value="solar-light">Solarized Light</option>
+              <option value="solar-dark">Solarized Dark</option>
+            </select>
           </div>
         </div>
 
@@ -795,16 +805,7 @@
 
   <script>
     /************************************************************
-     * HIGH-LEVEL DATA MODEL
-     *
-     * - Templates: array of { id, name, events }
-     * - Events: { id, title, startMinutes, endMinutes, description, locked }
-     * - All state is stored in localStorage keyed by URL (share-code style)
-     *
-     * You can safely:
-     * - Change defaultTemplates
-     * - Change themePresets
-     * - Change defaultTheme
+     * DATA MODEL
      ************************************************************/
 
     const STORAGE_KEY = "notion-time-blocker-v2";
@@ -814,7 +815,6 @@
         id: "default-summer",
         name: "Default Summer Routine",
         events: [
-          // Example events – you can edit or remove these
           { id: "e1", title: "Arise & Morning Routine", startMinutes: 6 * 60, endMinutes: 8 * 60, description: "Water, meditate, plan, stretch", locked: false },
           { id: "e2", title: "Reading", startMinutes: 8 * 60, endMinutes: 8 * 60 + 30, description: "Book or Khan Academy reading", locked: false },
           { id: "e3", title: "Algebra 2", startMinutes: 9 * 60 + 30, endMinutes: 12 * 60, description: "Khan Academy + notes", locked: false },
@@ -867,12 +867,53 @@
         eventBg: "#FFB7B2",
         eventText: "#4A4A4A",
         textMain: "#333333"
+      },
+      midnight: {
+        bgMain: "#0B1020",
+        bgPanel: "#151B30",
+        bgGrid: "#1E2640",
+        accent: "#4C8DFF",
+        eventBg: "#4C8DFF",
+        eventText: "#FFFFFF",
+        textMain: "#E5ECFF"
+      },
+      forest: {
+        bgMain: "#F3F7F4",
+        bgPanel: "#DDE8E0",
+        bgGrid: "#FFFFFF",
+        accent: "#3A6B4F",
+        eventBg: "#4F8A5B",
+        eventText: "#FFFFFF",
+        textMain: "#1F2E24"
+      },
+      rosewater: {
+        bgMain: "#FFF7F9",
+        bgPanel: "#FBE0E8",
+        bgGrid: "#FFFFFF",
+        accent: "#E58CA5",
+        eventBg: "#F2A7BC",
+        eventText: "#4A2A33",
+        textMain: "#3A2A2F"
+      },
+      "solar-light": {
+        bgMain: "#FDF6E3",
+        bgPanel: "#EEE8D5",
+        bgGrid: "#FFFFFF",
+        accent: "#268BD2",
+        eventBg: "#2AA198",
+        eventText: "#073642",
+        textMain: "#586E75"
+      },
+      "solar-dark": {
+        bgMain: "#002B36",
+        bgPanel: "#073642",
+        bgGrid: "#00212B",
+        accent: "#268BD2",
+        eventBg: "#2AA198",
+        eventText: "#FDF6E3",
+        textMain: "#EEE8D5"
       }
     };
-
-    /************************************************************
-     * STATE
-     ************************************************************/
 
     let state = {
       templates: [],
@@ -884,7 +925,7 @@
       alarmVolume: 0.7
     };
 
-    let dragState = null; // { eventId, startOffsetMinutes, originalStart, originalEnd }
+    let dragState = null;
     let editingEventId = null;
 
     /************************************************************
@@ -892,7 +933,6 @@
      ************************************************************/
 
     function getShareKey() {
-      // Per-URL share code style
       return window.location.pathname + window.location.search;
     }
 
@@ -972,7 +1012,7 @@
     }
 
     /************************************************************
-     * THEME APPLICATION
+     * THEME
      ************************************************************/
 
     function applyTheme() {
@@ -987,7 +1027,6 @@
       root.style.setProperty("--text-main", state.theme.textMain);
       root.style.setProperty("--text-muted", state.theme.textMain + "CC");
 
-      // Update color inputs
       document.getElementById("bgColorInput").value = state.theme.bgMain;
       document.getElementById("panelColorInput").value = state.theme.bgPanel;
       document.getElementById("accentColorInput").value = state.theme.accent;
@@ -997,7 +1036,7 @@
     }
 
     /************************************************************
-     * GRID RENDERING (AUTO-FILL HEIGHT)
+     * GRID
      ************************************************************/
 
     const hourLabelsEl = document.getElementById("hourLabels");
@@ -1029,10 +1068,8 @@
         gridHoursEl.appendChild(hourDiv);
       }
 
-      // Scroll to 06:00–23:00 range by default
       requestAnimationFrame(() => {
         const totalHeight = gridHoursEl.getBoundingClientRect().height;
-        const visibleHours = state.showEarly ? 24 : 17; // 06–23 inclusive = 17 hours
         const hourHeight = totalHeight / HOURS_IN_DAY;
         const scrollStartHour = state.showEarly ? 0 : 6;
         gridWrapperEl.scrollTop = scrollStartHour * hourHeight;
@@ -1051,7 +1088,7 @@
     }
 
     /************************************************************
-     * EVENTS RENDERING
+     * EVENTS
      ************************************************************/
 
     function eventsOverlap(e1, e2) {
@@ -1076,7 +1113,6 @@
         block.style.top = top + "px";
         block.style.height = height + "px";
 
-        // dashed outline if overlapping
         const overlapping = events.some(other => other.id !== ev.id && eventsOverlap(ev, other));
         if (overlapping) {
           block.classList.add("event-overlaying");
@@ -1088,16 +1124,16 @@
         const innerRow = document.createElement("div");
         innerRow.className = "event-inner-row";
 
-        const timeEl = document.createElement("div");
-        timeEl.className = "event-time";
-        timeEl.textContent = `${minutesToTimeStr(ev.startMinutes)}–${minutesToTimeStr(ev.endMinutes)}`;
-
         const titleEl = document.createElement("div");
         titleEl.className = "event-title";
         titleEl.textContent = ev.title || "(Untitled)";
 
-        innerRow.appendChild(timeEl);
+        const timeEl = document.createElement("div");
+        timeEl.className = "event-time";
+        timeEl.textContent = `${minutesToTimeStr(ev.startMinutes)}–${minutesToTimeStr(ev.endMinutes)}`;
+
         innerRow.appendChild(titleEl);
+        innerRow.appendChild(timeEl);
         block.appendChild(innerRow);
 
         const lockIcon = document.createElement("div");
@@ -1105,13 +1141,9 @@
         lockIcon.textContent = ev.locked ? "🔒" : "";
         block.appendChild(lockIcon);
 
-        // Drag & click handlers
         block.addEventListener("mousedown", (e) => {
           if (ev.locked) {
-            // locked: open modal on click
-            if (e.button === 0) {
-              openEventModal(ev.id);
-            }
+            if (e.button === 0) openEventModal(ev.id);
             return;
           }
           if (e.button !== 0) return;
@@ -1165,7 +1197,6 @@
       let duration = dragState.originalEnd - dragState.originalStart;
       let newEnd = newStart + duration;
 
-      // keep within 0–24h*2 (to allow crossing midnight if you want)
       const maxMinutes = 24 * 60 * 2;
       if (newStart < 0) {
         newStart = 0;
@@ -1190,7 +1221,7 @@
     }
 
     /************************************************************
-     * TEMPLATES UI
+     * TEMPLATES
      ************************************************************/
 
     const templateListEl = document.getElementById("templateList");
@@ -1314,7 +1345,6 @@
         eventLockedInput.checked = !!ev.locked;
         deleteEventBtn.style.display = "inline-flex";
       } else {
-        // new event
         eventTitleInput.value = "";
         eventStartInput.value = "06:00";
         eventEndInput.value = "07:00";
@@ -1390,10 +1420,6 @@
       closeEventModal();
     });
 
-    /************************************************************
-     * ADD EVENT BUTTON
-     ************************************************************/
-
     document.getElementById("addEventBtn").addEventListener("click", () => {
       openEventModal(null);
     });
@@ -1415,28 +1441,15 @@
     });
 
     /************************************************************
-     * RIGHT PANEL TOGGLE
+     * RIGHT PANEL TOGGLE (push grid inward)
      ************************************************************/
 
     const rightPanelEl = document.getElementById("rightPanel");
     const menuToggleBtn = document.getElementById("menuToggleBtn");
 
-    function updateRightPanelVisibility() {
-      const wide = window.innerWidth >= 1000;
-      if (wide) {
-        rightPanelEl.classList.remove("hidden");
-      } else {
-        rightPanelEl.classList.add("hidden");
-      }
-    }
-
     menuToggleBtn.addEventListener("click", () => {
-      const wide = window.innerWidth >= 1000;
-      if (wide) return; // always visible on wide screens
-      rightPanelEl.classList.toggle("hidden");
+      rightPanelEl.classList.toggle("collapsed");
     });
-
-    window.addEventListener("resize", updateRightPanelVisibility);
 
     /************************************************************
      * THEME CONTROLS
@@ -1480,15 +1493,16 @@
       saveState();
     });
 
-    document.querySelectorAll(".preset-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const preset = themePresets[btn.dataset.preset];
-        if (!preset) return;
-        state.theme = { ...preset };
-        applyTheme();
-        renderEvents();
-        saveState();
-      });
+    const presetSelect = document.getElementById("presetSelect");
+    presetSelect.addEventListener("change", () => {
+      const key = presetSelect.value;
+      if (!key) return;
+      const preset = themePresets[key];
+      if (!preset) return;
+      state.theme = { ...preset };
+      applyTheme();
+      renderEvents();
+      saveState();
     });
 
     /************************************************************
@@ -1504,11 +1518,10 @@
 
     const alarmAudio = new Audio();
     const alarmSounds = {
-      chime: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=", // tiny silent placeholder
+      chime: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=",
       bell: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=",
       ping: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
     };
-    // NOTE: Replace the above data URLs with real sounds if you want.
 
     function playAlarm(message) {
       if (!state.alarmsEnabled) return;
@@ -1553,12 +1566,10 @@
         const ev = events[i];
         const next = events[i + 1];
 
-        // Start alarm
         if (clampTo5Minutes(ev.startMinutes) === clampTo5Minutes(minutesToday)) {
           playAlarm(`Start: ${ev.title}`);
         }
 
-        // End alarm
         if (clampTo5Minutes(ev.endMinutes) === clampTo5Minutes(minutesToday)) {
           if (next) {
             playAlarm(`"${ev.title}" finished, start "${next.title}"`);
@@ -1572,7 +1583,7 @@
     setInterval(checkAlarms, 15000);
 
     /************************************************************
-     * CURRENT TIME / CURRENT EVENT INDICATOR
+     * CURRENT TIME / EVENT
      ************************************************************/
 
     const currentTimeLabel = document.getElementById("currentTimeLabel");
@@ -1600,7 +1611,7 @@
     setInterval(updateCurrentTimeAndEvent, 30000);
 
     /************************************************************
-     * INITIALIZATION
+     * INIT
      ************************************************************/
 
     function init() {
@@ -1610,9 +1621,7 @@
       renderTemplatesList();
       syncTemplateTitle();
       renderEvents();
-      updateRightPanelVisibility();
 
-      // Restore toggles
       toggleEarlyBtn.classList.toggle("active", state.showEarly);
       toggleEarlyBtn.textContent = state.showEarly
         ? "Hide 00:00–06:00 & 23:00–24:00"
